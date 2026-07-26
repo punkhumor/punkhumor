@@ -17,18 +17,21 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int _index = 0;
+  String? _lastMessage;
 
   @override
   Widget build(BuildContext context) {
-    final message = context.watch<HomeController>().statusMessage;
-    if (message != null) {
+    final message = context.select<HomeController, String?>(
+      (c) => c.statusMessage,
+    );
+    if (message != null && message != _lastMessage) {
+      _lastMessage = message;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final controller = context.read<HomeController>();
-        if (controller.statusMessage == null) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(controller.statusMessage!)),
+          SnackBar(content: Text(message)),
         );
-        controller.clearStatus();
+        context.read<HomeController>().clearStatus();
       });
     }
 

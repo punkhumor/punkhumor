@@ -8,7 +8,7 @@ IconData iconForType(DeviceType type) {
     DeviceType.light => Icons.lightbulb_outline_rounded,
     DeviceType.plug => Icons.power_rounded,
     DeviceType.airConditioner => Icons.ac_unit_rounded,
-    DeviceType.curtain => Icons.curtains_rounded,
+    DeviceType.curtain => Icons.window_rounded,
     DeviceType.airPurifier => Icons.air_rounded,
     DeviceType.fan => Icons.air_rounded,
     DeviceType.switchPanel => Icons.toggle_on_outlined,

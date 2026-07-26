@@ -15,8 +15,12 @@ enum DeviceType {
 enum DeviceProtocol {
   demo,
   homeAssistant,
+  shelly,
+  tasmota,
+  esphome,
+  yeelight,
   http,
-  tuya,
+  mqtt,
 }
 
 extension DeviceTypeX on DeviceType {
@@ -33,7 +37,21 @@ extension DeviceTypeX on DeviceType {
         DeviceType.speaker => '音箱',
         DeviceType.unknown => '未知设备',
       };
+}
 
+extension DeviceProtocolX on DeviceProtocol {
+  String get label => switch (this) {
+        DeviceProtocol.demo => '演示',
+        DeviceProtocol.homeAssistant => 'Home Assistant',
+        DeviceProtocol.shelly => 'Shelly',
+        DeviceProtocol.tasmota => 'Tasmota',
+        DeviceProtocol.esphome => 'ESPHome',
+        DeviceProtocol.yeelight => 'Yeelight',
+        DeviceProtocol.http => 'HTTP',
+        DeviceProtocol.mqtt => 'MQTT',
+      };
+
+  bool get isReal => this != DeviceProtocol.demo;
 }
 
 class SmartDevice {
@@ -55,15 +73,18 @@ class SmartDevice {
     this.mode = 'auto',
     this.entityId,
     this.endpoint,
+    this.host,
+    this.port,
     this.brand = '通用',
     this.lastSeen,
+    this.lastError,
   });
 
   final String id;
   String name;
   String room;
-  final DeviceType type;
-  final DeviceProtocol protocol;
+  DeviceType type;
+  DeviceProtocol protocol;
   bool online;
   bool powerOn;
   double brightness;
@@ -76,14 +97,30 @@ class SmartDevice {
   String mode;
   String? entityId;
   String? endpoint;
+  String? host;
+  int? port;
   String brand;
   DateTime? lastSeen;
+  String? lastError;
 
   bool get isControllable =>
       type != DeviceType.sensor && type != DeviceType.camera;
 
+  String get baseUrl {
+    if (endpoint != null && endpoint!.isNotEmpty) {
+      return endpoint!.endsWith('/')
+          ? endpoint!.substring(0, endpoint!.length - 1)
+          : endpoint!;
+    }
+    if (host != null) {
+      final p = port ?? 80;
+      return 'http://$host:$p';
+    }
+    return '';
+  }
+
   String get statusText {
-    if (!online) return '离线';
+    if (!online) return lastError == null ? '离线' : '离线 · $lastError';
     return switch (type) {
       DeviceType.light => powerOn ? '亮度 ${brightness.round()}%' : '已关闭',
       DeviceType.plug || DeviceType.switchPanel => powerOn ? '已开启' : '已关闭',
@@ -92,7 +129,8 @@ class SmartDevice {
       DeviceType.curtain => '开合 ${position.round()}%',
       DeviceType.airPurifier => powerOn ? '风速 $fanSpeed' : '已关闭',
       DeviceType.fan => powerOn ? '档位 $fanSpeed' : '已关闭',
-      DeviceType.sensor => '${temperature.toStringAsFixed(1)}°C · ${humidity.round()}%',
+      DeviceType.sensor =>
+        '${temperature.toStringAsFixed(1)}°C · ${humidity.round()}%',
       DeviceType.camera => '在线',
       DeviceType.speaker => powerOn ? '播放中' : '待机',
       DeviceType.unknown => powerOn ? '开启' : '关闭',
@@ -102,6 +140,8 @@ class SmartDevice {
   SmartDevice copyWith({
     String? name,
     String? room,
+    DeviceType? type,
+    DeviceProtocol? protocol,
     bool? online,
     bool? powerOn,
     double? brightness,
@@ -114,15 +154,19 @@ class SmartDevice {
     String? mode,
     String? entityId,
     String? endpoint,
+    String? host,
+    int? port,
     String? brand,
     DateTime? lastSeen,
+    String? lastError,
+    bool clearError = false,
   }) {
     return SmartDevice(
       id: id,
       name: name ?? this.name,
       room: room ?? this.room,
-      type: type,
-      protocol: protocol,
+      type: type ?? this.type,
+      protocol: protocol ?? this.protocol,
       online: online ?? this.online,
       powerOn: powerOn ?? this.powerOn,
       brightness: brightness ?? this.brightness,
@@ -135,8 +179,11 @@ class SmartDevice {
       mode: mode ?? this.mode,
       entityId: entityId ?? this.entityId,
       endpoint: endpoint ?? this.endpoint,
+      host: host ?? this.host,
+      port: port ?? this.port,
       brand: brand ?? this.brand,
       lastSeen: lastSeen ?? this.lastSeen,
+      lastError: clearError ? null : (lastError ?? this.lastError),
     );
   }
 
@@ -158,6 +205,8 @@ class SmartDevice {
         'mode': mode,
         'entityId': entityId,
         'endpoint': endpoint,
+        'host': host,
+        'port': port,
         'brand': brand,
         'lastSeen': lastSeen?.toIso8601String(),
       };
@@ -187,6 +236,8 @@ class SmartDevice {
       mode: json['mode'] as String? ?? 'auto',
       entityId: json['entityId'] as String?,
       endpoint: json['endpoint'] as String?,
+      host: json['host'] as String?,
+      port: json['port'] as int?,
       brand: json['brand'] as String? ?? '通用',
       lastSeen: json['lastSeen'] != null
           ? DateTime.tryParse(json['lastSeen'] as String)

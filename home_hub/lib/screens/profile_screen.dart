@@ -134,22 +134,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '版本 1.0.0',
+                '版本 1.1.0',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                '智家是一款米家风格的智能家居控制端：本地发现演示设备，并通过 Home Assistant 网关覆盖主流可联网电器。',
+                '智家可真实控制局域网 Shelly / Tasmota / ESPHome / Yeelight，也可通过 Home Assistant 统一接入米家、涂鸦、Matter 等。',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.ink.withValues(alpha: 0.65),
                     ),
               ),
               const SizedBox(height: 8),
               Text(
-                '当前设备数：${controller.devices.length}',
+                '设备 ${controller.devices.length} · 真实 ${controller.realCount}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.ink.withValues(alpha: 0.5),
                     ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => controller.refreshRealDevices(),
+                    child: const Text('刷新真实设备'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => controller.resetDemoDevices(),
+                    child: const Text('重置演示设备'),
+                  ),
+                ],
               ),
             ],
           ),

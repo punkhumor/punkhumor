@@ -82,12 +82,41 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '${device.brand} · ${device.room} · ${device.protocol.name}',
+              '${device.protocol.label} · ${device.brand} · ${device.room}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.ink.withValues(alpha: 0.5),
                   ),
             ),
+            if (device.endpoint != null || device.host != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                device.endpoint ?? '${device.host}:${device.port ?? ''}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.ink.withValues(alpha: 0.4),
+                    ),
+              ),
+            ],
+            if (device.lastError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                device.lastError!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.danger,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            if (device.protocol.isReal)
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: () => controller.refreshDevice(device.id),
+                  icon: const Icon(Icons.sync_rounded),
+                  label: const Text('从设备读取状态'),
+                ),
+              ),
             const SizedBox(height: 24),
             if (device.isControllable) ...[
               _Panel(

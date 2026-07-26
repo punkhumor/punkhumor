@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_hub/main.dart';
 import 'package:home_hub/state/home_controller.dart';
@@ -15,6 +16,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('智家'), findsOneWidget);
-    expect(find.text('客厅主灯'), findsOneWidget);
+    expect(find.textContaining('演示'), findsWidgets);
+
+    controller.dispose();
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

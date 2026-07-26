@@ -1,33 +1,43 @@
 # 智家 Home Hub
 
-米家风格的智能家居控制 App：浏览房间设备、快捷开关、场景联动，并通过 **Home Assistant** 网关统一访问/控制主流可联网电器。
+米家风格智能家居控制 App。**1.1.0 起可真实下发控制**局域网设备。
 
-## 功能
+## 为什么旧版“不可用”
 
-- 首页设备宫格：按房间筛选、一键开关
-- 设备详情：灯亮度/色温、空调温度/模式、窗帘开合、风扇风速等
-- 场景：离家 / 归家 / 睡眠 / 观影
-- 局域网发现：扫描常见端口；无结果时提供演示设备
-- Home Assistant：配置地址 + 长期令牌后同步实体并下发控制
+1. Google Fonts 在线拉字体会在国内失败 → 界面空白/卡死  
+2. 扫描开了上千并发连接 → 手机端易卡死  
+3. HTTP 设备只有 UI 状态，没有真正发包  
 
-## 构建 APK
+## 1.1.0 真控制能力
+
+| 协议 | 能力 |
+|------|------|
+| **手动 IP 添加** | 推荐入口，输入 IP + 协议即可接入 |
+| Shelly | Gen1 `/relay/0` + Gen2 RPC |
+| Tasmota | `/cm?cmnd=Power` / Dimmer |
+| ESPHome | `/switch/...` `/light/...` REST |
+| Yeelight | LAN TCP `55443` |
+| 通用 HTTP | `/on` `/off` 等约定路径 |
+| Home Assistant | 同步实体并下发（覆盖米家/涂鸦/Matter 等） |
+
+## 使用步骤
+
+1. 手机与电器同一 Wi-Fi  
+2. 打开智家 → **添加** → **手动添加**  
+3. 填 IP、选协议（Tasmota/Shelly/Yeelight…）→ 探测并添加  
+4. 回首页拨动开关，应看到「已下发到 xxx」  
+5. 若有 Home Assistant：在「我的」填地址+令牌 → 同步设备  
+
+## 构建
 
 ```bash
 export PATH="$HOME/flutter/bin:$PATH"
 export ANDROID_HOME="$HOME/android-sdk"
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-
 cd home_hub
 flutter pub get
+flutter test
 flutter build apk --release
 ```
 
-产物：`build/app/outputs/flutter-apk/app-release.apk`
-
-## 真实设备怎么接
-
-1. 在家中部署 [Home Assistant](https://www.home-assistant.io/)
-2. 用官方/社区集成接入米家、涂鸦、Matter、ESPHome 等
-3. 在 App「我的」填写 HA 地址与长期访问令牌，点「同步设备」
-
-> 说明：市面上品牌协议碎片化，直接兼容「所有」厂商私有云不现实；以 Home Assistant 为总线是当前最稳妥的统一控制路径。
+APK：`build/app/outputs/flutter-apk/app-release.apk` → 复制到 `releases/home_hub-1.1.0.apk`

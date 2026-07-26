@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   static const ink = Color(0xFF14201C);
@@ -13,10 +12,13 @@ class AppColors {
 }
 
 class AppTheme {
+  static const _font = 'HubSans';
+
   static ThemeData light() {
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: _font,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.moss,
         brightness: Brightness.light,
@@ -26,45 +28,21 @@ class AppTheme {
       ),
     );
 
-    final display = GoogleFonts.notoSerifScTextTheme(base.textTheme);
-    final body = GoogleFonts.notoSansScTextTheme(base.textTheme);
-
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.cloud,
-      textTheme: body.copyWith(
-        displayLarge: display.displayLarge?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1,
-        ),
-        displayMedium: display.displayMedium?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w700,
-        ),
-        headlineLarge: display.headlineLarge?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w700,
-        ),
-        headlineMedium: display.headlineMedium?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w700,
-        ),
-        headlineSmall: display.headlineSmall?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w600,
-        ),
-        titleLarge: body.titleLarge?.copyWith(
-          color: AppColors.ink,
-          fontWeight: FontWeight.w700,
-        ),
+      textTheme: base.textTheme.apply(
+        fontFamily: _font,
+        bodyColor: AppColors.ink,
+        displayColor: AppColors.ink,
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         foregroundColor: AppColors.ink,
-        titleTextStyle: display.titleLarge?.copyWith(
+        titleTextStyle: TextStyle(
+          fontFamily: _font,
           color: AppColors.ink,
           fontWeight: FontWeight.w700,
           fontSize: 22,
@@ -76,9 +54,12 @@ class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
+            fontFamily: _font,
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? AppColors.moss : AppColors.ink.withValues(alpha: 0.55),
+            color: selected
+                ? AppColors.moss
+                : AppColors.ink.withValues(alpha: 0.55),
           );
         }),
       ),
@@ -92,10 +73,13 @@ class AppTheme {
         inactiveTrackColor: AppColors.line,
         overlayColor: AppColors.moss.withValues(alpha: 0.12),
       ),
-      snackBarTheme: SnackBarThemeData(
+      snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.ink,
-        contentTextStyle: body.bodyMedium?.copyWith(color: Colors.white),
+        contentTextStyle: TextStyle(
+          fontFamily: _font,
+          color: Colors.white,
+        ),
       ),
     );
   }

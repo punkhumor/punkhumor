@@ -56,7 +56,9 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '统一访问与控制家中可联网电器',
+                        controller.realCount > 0
+                            ? '已接入 ${controller.realCount} 台真实设备，可直接下发控制'
+                            : '先点「添加」用 IP 接入真实电器（Shelly/Tasmota/Yeelight/HA）',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.ink.withValues(alpha: 0.58),
                             ),
@@ -73,10 +75,16 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     _StatChip(
-                      label: '运行中',
-                      value: '${controller.onCount}',
+                      label: '真实',
+                      value: '${controller.realCount}',
                     ),
                     const Spacer(),
+                    IconButton.filledTonal(
+                      tooltip: '刷新真实设备',
+                      onPressed: () => controller.refreshRealDevices(),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    const SizedBox(width: 8),
                     FilledButton.tonalIcon(
                       onPressed: () {
                         Navigator.of(context).push(

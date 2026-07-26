@@ -14,9 +14,26 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
+  ErrorWidget.builder = (details) {
+    return Material(
+      color: AppColors.cloud,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '界面异常：${details.exceptionAsString()}',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
+
   final controller = HomeController();
-  await controller.bootstrap();
+  // 先渲染 UI，避免启动阶段任何 IO 卡住白屏
   runApp(HomeHubApp(controller: controller));
+  await controller.bootstrap();
 }
 
 class HomeHubApp extends StatelessWidget {
