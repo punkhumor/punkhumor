@@ -4,4 +4,4 @@
 
 - 应用源码：[`home_hub/`](./home_hub/)
 - 构建说明：见 [`home_hub/README.md`](./home_hub/README.md)
-- Release APK：构建后位于 `home_hub/build/app/outputs/flutter-apk/app-release.apk`，也会复制到 `releases/`
+- 可直接安装的 APK：[`releases/home_hub-1.0.0.apk`](./releases/home_hub-1.0.0.apk)
