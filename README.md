@@ -4,7 +4,7 @@
 
 - 源码：[`home_hub/`](./home_hub/)
 - 说明：[`home_hub/README.md`](./home_hub/README.md)
-- APK：**[`releases/home_hub-1.1.0.apk`](./releases/home_hub-1.1.0.apk)**
+- APK：**[`releases/home_hub-1.1.0.apk`](./releases/home_hub-1.1.0.apk)**（arm64，约 20MB）
 
 ## 快速使用
 
