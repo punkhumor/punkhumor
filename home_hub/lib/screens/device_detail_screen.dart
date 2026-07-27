@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/device.dart';
+import '../models/hvac_mode.dart';
 import '../state/home_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/atmosphere_background.dart';
@@ -214,17 +215,29 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final mode in ['cool', 'heat', 'dry', 'fan', 'auto'])
+                    for (final mode in HvacMode.selectable)
                       ChoiceChip(
-                        label: Text(_modeLabel(mode)),
-                        selected: device.mode == mode,
+                        label: Text(mode.labelZh),
+                        selected: HvacMode.parse(device.mode).code == mode.code,
                         onSelected: device.online
                             ? (_) => controller.updateDevice(
-                                  device.copyWith(mode: mode, powerOn: true),
+                                  device.copyWith(
+                                    mode: mode.code,
+                                    powerOn: true,
+                                  ),
                                 )
                             : null,
                       ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  device.protocol == DeviceProtocol.homeAssistant
+                      ? '将下发 HA：hvac_mode=${HvacMode.toHa(device.mode)}'
+                      : '当前协议不支持空调模式直控；请经 Home Assistant 接入空调',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.ink.withValues(alpha: 0.45),
+                      ),
                 ),
               ],
             ),
@@ -329,14 +342,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         ];
     }
   }
-
-  String _modeLabel(String mode) => switch (mode) {
-        'cool' => '制冷',
-        'heat' => '制热',
-        'dry' => '除湿',
-        'fan' => '送风',
-        _ => '自动',
-      };
 }
 
 class _Panel extends StatelessWidget {

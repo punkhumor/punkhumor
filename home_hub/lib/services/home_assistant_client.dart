@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/device.dart';
+import '../models/hvac_mode.dart';
 
 /// Home Assistant REST 客户端：把各类品牌接入 HA 后，本 App 即可统一访问与控制。
 class HomeAssistantClient {
@@ -76,9 +77,11 @@ class HomeAssistantClient {
           position: (attrs['current_position'] as num?)?.toDouble() ??
               (state == 'open' ? 100 : 0),
           fanSpeed: (attrs['percentage'] as num?)?.toInt() ?? 2,
-          mode: (attrs['hvac_mode'] as String?) ??
-              (attrs['preset_mode'] as String?) ??
-              'auto',
+          mode: HvacMode.fromHa(
+            (attrs['hvac_mode'] as String?) ??
+                (attrs['preset_mode'] as String?) ??
+                'auto',
+          ),
           entityId: entityId,
           brand: 'Home Assistant',
           lastSeen: DateTime.now(),
@@ -153,17 +156,22 @@ class HomeAssistantClient {
             entityId: entityId,
           );
         } else {
-          await callService(
-            domain: 'climate',
-            service: 'set_temperature',
-            entityId: entityId,
-            data: {'temperature': device.targetTemp},
-          );
+          // 先设模式再设温度：用官方 hvac_mode，cool/heat 一一对应，不会串
+          final hvacMode = HvacMode.toHa(device.mode);
           await callService(
             domain: 'climate',
             service: 'set_hvac_mode',
             entityId: entityId,
-            data: {'hvac_mode': device.mode},
+            data: {'hvac_mode': hvacMode},
+          );
+          await callService(
+            domain: 'climate',
+            service: 'set_temperature',
+            entityId: entityId,
+            data: {
+              'temperature': device.targetTemp,
+              'hvac_mode': hvacMode,
+            },
           );
         }
       case DeviceType.curtain:

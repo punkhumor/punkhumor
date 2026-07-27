@@ -1,3 +1,5 @@
+import 'hvac_mode.dart';
+
 enum DeviceType {
   light,
   plug,
@@ -125,7 +127,7 @@ class SmartDevice {
       DeviceType.light => powerOn ? '亮度 ${brightness.round()}%' : '已关闭',
       DeviceType.plug || DeviceType.switchPanel => powerOn ? '已开启' : '已关闭',
       DeviceType.airConditioner =>
-        powerOn ? '$mode · ${targetTemp.round()}°C' : '已关闭',
+        powerOn ? '${HvacMode.labelOf(mode)} · ${targetTemp.round()}°C' : '已关闭',
       DeviceType.curtain => '开合 ${position.round()}%',
       DeviceType.airPurifier => powerOn ? '风速 $fanSpeed' : '已关闭',
       DeviceType.fan => powerOn ? '档位 $fanSpeed' : '已关闭',
