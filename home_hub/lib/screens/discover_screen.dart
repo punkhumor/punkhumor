@@ -45,7 +45,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     final controller = context.read<HomeController>();
     final found = await controller.discover();
     setState(() {
-      _found = found.where((d) => d.protocol.isReal || true).toList();
+      _found = found.where((d) => d.protocol.isReal).toList();
       _selected
         ..clear()
         ..addAll(found.map((e) => e.id));
@@ -243,7 +243,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '安全并发扫描常见端口，并识别 Shelly / Tasmota / ESPHome / Yeelight / Home Assistant。',
+            '只显示指纹识别成功的智能设备（Shelly / Tasmota / ESPHome / Yeelight / Home Assistant）。'
+            '路由器、打印机、手机等开端口主机会被自动过滤，不会再刷出几百条。',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.ink.withValues(alpha: 0.62),
                 ),
@@ -271,12 +272,25 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             child: !_scanned && !discovering
                 ? Center(
                     child: Text(
-                      '手机需与电器同一 Wi-Fi',
+                      '手机需与电器同一 Wi-Fi；推荐优先用「手动添加」',
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: AppColors.ink.withValues(alpha: 0.45),
                           ),
                     ),
                   )
+                : _scanned && _found.isEmpty
+                    ? Center(
+                        child: Text(
+                          '未发现可识别智能设备。\n请改用「手动添加」填入设备 IP。',
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color:
+                                        AppColors.ink.withValues(alpha: 0.5),
+                                  ),
+                        ),
+                      )
                 : ListView.separated(
                     itemCount: _found.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
