@@ -1,4 +1,4 @@
-import { ATTR_META, allLeafIds, leafIdsUnder } from "./data.js";
+import { ATTR_META, allLeafIds, leafIdsUnder, CATEGORIES as DEFAULT_CATEGORIES } from "./data.js";
 
 function asSet(selectedIds) {
   return selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
@@ -17,11 +17,10 @@ function isAllSelected(selected, universe) {
  * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）
  * - 所有约束之间 AND
  */
-export function buildSmartConstraints(selectedIds, categories) {
+export function buildSmartConstraints(selectedIds, categories = DEFAULT_CATEGORIES) {
   const selected = asSet(selectedIds);
   const constraints = [];
-
-  for (const cat of categories) {
+  const cats = categories || DEFAULT_CATEGORIES;
     const catLeaves = leafIdsUnder(cat);
     const selInCat = catLeaves.filter((id) => selected.has(id));
     if (selInCat.length === 0) continue;
