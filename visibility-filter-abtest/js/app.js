@@ -13,7 +13,6 @@ import {
   initialDesignAState,
   initialDesignBState,
   nodeCheckState,
-  selectAllLeaves,
   clearAllLeaves,
 } from "./filters.js";
 

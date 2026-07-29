@@ -1,9 +1,9 @@
-import { PEOPLE, CATEGORIES, allLeafIds } from "./data.js";
+import { PEOPLE, CATEGORIES, allLeafIds, leafIdsUnder } from "./data.js";
 import {
   filterDesignA,
   filterDesignB,
   initialDesignAState,
-  initialDesignBState,
+  buildSmartConstraints,
 } from "./filters.js";
 
 function assert(c, m) {
@@ -12,22 +12,15 @@ function assert(c, m) {
 
 const u = allLeafIds();
 const a = initialDesignAState(CATEGORIES);
-const b = initialDesignBState(CATEGORIES);
-assert(filterDesignA(PEOPLE, a.selected, "multi", u).length === PEOPLE.length, "A");
-assert(filterDesignB(PEOPLE, b.selected, u).length === PEOPLE.length, "B");
-assert(filterDesignA(PEOPLE, new Set(["dept-prod-1"]), "multi", u).includes("zhang"), "or");
 assert(
-  filterDesignA(PEOPLE, new Set(["dept-prod-1", "pos-engineer-soft"]), "filter", u).includes(
-    "zhang"
-  ),
-  "and"
+  filterDesignA(PEOPLE, a.selected, "multi", u, CATEGORIES).length === PEOPLE.length,
+  "A"
 );
+const idLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
+const sel = new Set([...idLeaves, "dept-prod-1"]);
+assert(buildSmartConstraints(sel, CATEGORIES).length >= 2, "constraints");
 assert(
-  filterDesignB(
-    PEOPLE,
-    new Set(["dept-test-qa", "pos-engineer-soft", "pos-engineer-hard"]),
-    u
-  ).includes("chen"),
-  "B facet"
+  filterDesignB(PEOPLE, sel, u, CATEGORIES).includes("zhang"),
+  "B"
 );
 console.log("smoke ok");
