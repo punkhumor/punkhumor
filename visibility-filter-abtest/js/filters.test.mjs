@@ -5,6 +5,7 @@ import {
   initialDesignAState,
   initialDesignBState,
   buildSmartConstraints,
+  buildStrictConstraints,
 } from "./filters.js";
 
 function assert(cond, msg) {
@@ -24,92 +25,76 @@ const universe = allLeafIds();
 // all / none
 {
   const a = initialDesignAState(CATEGORIES);
-  assert(
-    filterDesignA(PEOPLE, a.selected, "multi", universe, CATEGORIES).length ===
-      PEOPLE.length,
-    "A all"
-  );
+  assert(filterDesignA(PEOPLE, a.selected, "multi", universe, CATEGORIES).length === PEOPLE.length, "A all");
   assert(filterDesignA(PEOPLE, new Set(), "filter", universe, CATEGORIES).length === 0, "A none");
   assert(filterDesignB(PEOPLE, new Set(), universe, CATEGORIES).length === 0, "B none");
   const b = initialDesignBState(CATEGORIES);
   assert(filterDesignB(PEOPLE, b.selected, universe, CATEGORIES).length === PEOPLE.length, "B all");
 }
 
-// A multi OR
+// A 多选 OR
 {
-  const ids = filterDesignA(
-    PEOPLE,
-    new Set(["dept-prod-1", "pos-qa"]),
-    "multi",
-    universe,
-    CATEGORIES
-  );
-  assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi");
+  const ids = filterDesignA(PEOPLE, new Set(["dept-prod-1", "pos-qa"]), "multi", universe, CATEGORIES);
+  assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi OR");
 }
 
-// B: same category OR — visitor-guest + contractor
+// A 匹配: 同大类 = AND → 技术部 + 市场部 → nobody
 {
-  const ids = filterDesignB(
-    PEOPLE,
-    new Set(["id-visitor-guest", "id-contractor"]),
-    universe,
-    CATEGORIES
-  );
-  assert(sameSet(ids, ["wang", "wu", "xu"]), "B same-cat OR (visitor+contractor)");
+  const ids = filterDesignA(PEOPLE, new Set(["dept-tech", "dept-market"]), "filter", universe, CATEGORIES);
+  assert(ids.length === 0, "A filter same-cat AND (tech+market=nobody)");
 }
 
-// B: same category OR — prod-1 + prod-2
+// A 匹配: 测试部(全选) + 市场部 → 属于测试部 AND 有市场部 → nobody
 {
-  const ids = filterDesignB(
-    PEOPLE,
-    new Set(["dept-prod-1", "dept-prod-2"]),
-    universe,
-    CATEGORIES
-  );
-  assert(sameSet(ids, ["zhang", "zhao"]), "B dept OR");
+  const testNode = CATEGORIES.find(c => c.id === "department").children.find(c => c.id === "dept-test");
+  const sel = new Set([...leafIdsUnder(testNode), "dept-market"]);
+  const ids = filterDesignA(PEOPLE, sel, "filter", universe, CATEGORIES);
+  assert(ids.length === 0, "A filter test-group AND market = nobody");
 }
 
-// B: cross category AND — test-qa + engineer-soft
+// A 匹配: 跨大类 AND → 生产一组 + 软件工程师 → zhang
 {
-  const ids = filterDesignB(
-    PEOPLE,
-    new Set(["dept-test-qa", "pos-engineer-soft"]),
-    universe,
-    CATEGORIES
-  );
+  const ids = filterDesignA(PEOPLE, new Set(["dept-prod-1", "pos-engineer-soft"]), "filter", universe, CATEGORIES);
+  assert(sameSet(ids, ["zhang"]), "A filter cross-cat AND");
+}
+
+// B: 同大类 = OR → 临时访客 + 承包商
+{
+  const ids = filterDesignB(PEOPLE, new Set(["id-visitor-guest", "id-contractor"]), universe, CATEGORIES);
+  assert(sameSet(ids, ["wang", "wu", "xu"]), "B same-cat OR");
+}
+
+// B: 同大类 = OR → 技术部 + 市场部
+{
+  const ids = filterDesignB(PEOPLE, new Set(["dept-tech", "dept-market"]), universe, CATEGORIES);
+  assert(sameSet(ids, ["huang", "xu"]), "B dept OR tech|market");
+}
+
+// B: 跨大类 = AND → test-qa + engineer-soft
+{
+  const ids = filterDesignB(PEOPLE, new Set(["dept-test-qa", "pos-engineer-soft"]), universe, CATEGORIES);
   assert(sameSet(ids, ["chen", "wu"]), "B cross AND");
 }
 
-// B: full identity + prod-1 → identity(any-all) AND dept(any[prod-1])
+// B: full identity + prod-1
 {
-  const idLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
+  const idLeaves = leafIdsUnder(CATEGORIES.find(c => c.id === "identity"));
   const sel = new Set([...idLeaves, "dept-prod-1"]);
-  const constraints = buildSmartConstraints(sel, CATEGORIES);
-  assert(
-    constraints.some((c) => c.type === "any" && c.ids.includes("dept-prod-1")),
-    "prod-1 in any"
-  );
   const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
-  assert(sameSet(ids, ["zhang"]), "B smart full-group AND leaf");
+  assert(sameSet(ids, ["zhang"]), "B full-group AND leaf");
 }
 
-// B: a1 + b1 + b2 → dept(test-qa) AND pos(eng-soft OR eng-hard)
+// B: a1 + b1 + b2 across cats
 {
-  const sel = new Set([
-    "dept-test-qa",
-    "pos-engineer-soft",
-    "pos-engineer-hard",
-  ]);
+  const sel = new Set(["dept-test-qa", "pos-engineer-soft", "pos-engineer-hard"]);
   const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
-  // chen: test-qa + soft ✓; wu: test-qa + soft ✓; zhou: test-auto ✗
   assert(sameSet(ids, ["chen", "wu"]), "B a1 AND (b1|b2)");
 }
 
-// A 匹配显示: same smart rules as B
+// A filter same-cat OR visitor-guest + contractor → should NOT be OR
 {
-  const sel = new Set(["id-visitor-guest", "id-contractor"]);
-  const ids = filterDesignA(PEOPLE, sel, "filter", universe, CATEGORIES);
-  assert(sameSet(ids, ["wang", "wu", "xu"]), "A filter same-cat OR");
+  const ids = filterDesignA(PEOPLE, new Set(["id-visitor-guest", "id-contractor"]), "filter", universe, CATEGORIES);
+  assert(ids.length === 0, "A filter visitor+contractor = strict AND → nobody");
 }
 
 console.log("All filter tests passed.");
