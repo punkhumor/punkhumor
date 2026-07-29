@@ -22,8 +22,8 @@ body = """
       <p class="brand">显隐筛选 <span>对比测试</span></p>
     </div>
     <div class="topbar-meta">
-      任意切换试用 · 每次打开随机先后<br />
-      单个文件即可分享
+      说明 → 试用 → 投票，可随时跳转<br />
+      每次打开随机方案先后
     </div>
   </header>
 

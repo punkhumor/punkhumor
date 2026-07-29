@@ -1,16 +1,25 @@
-import { CATEGORIES, PEOPLE, labelForAttr } from "./data.js";
+import {
+  CATEGORIES,
+  PEOPLE,
+  CATEGORY_COLORS,
+  labelForAttr,
+  colorForPerson,
+  allLeafIds,
+  leafIdsUnder,
+} from "./data.js";
 import {
   filterDesignA,
   filterDesignB,
+  initialDesignAState,
   initialDesignBState,
-  parentCheckState,
+  nodeCheckState,
   parentCheckStateB,
 } from "./filters.js";
 
 const OWNER_EMAIL = "punkhumorlyde@163.com";
-const STORAGE_KEY = "visibility-filter-abtest-votes-v2";
+const STORAGE_KEY = "visibility-filter-abtest-votes-v3";
+const LEAF_UNIVERSE = allLeafIds();
 
-/** Fresh random each page open — which underlying UI is labeled A/B, and who shows first. */
 function freshSession() {
   const flip = Math.random() < 0.5;
   return {
@@ -24,21 +33,11 @@ function freshSession() {
 const session = freshSession();
 
 const state = {
-  view: session.first, // 'A' | 'B' | 'compare' | 'vote' | 'results'
+  view: "intro",
   map: session.map,
-  toggle: {
-    mode: "or",
-    selected: new Set(),
-    expanded: Object.fromEntries(
-      CATEGORIES.map((c) => [c.id, c.id === "department"])
-    ),
-  },
+  toggle: initialDesignAState(CATEGORIES),
   facet: initialDesignBState(CATEGORIES),
-  /** Independent copies for side-by-side compare */
-  compare: {
-    A: null,
-    B: null,
-  },
+  compare: { A: null, B: null },
 };
 
 function cloneToggle(src) {
@@ -50,8 +49,11 @@ function cloneToggle(src) {
 }
 
 function cloneFacet(src) {
-  const out = {};
+  const out = {
+    _midExpanded: { ...(src._midExpanded || {}) },
+  };
   for (const [id, s] of Object.entries(src)) {
+    if (id === "_midExpanded") continue;
     out[id] = {
       enabled: s.enabled,
       selected: new Set(s.selected),
@@ -65,30 +67,18 @@ function engineKeyForLabel(label) {
   return state.map[label];
 }
 
-function getEngine(label) {
-  const key = engineKeyForLabel(label);
-  return key === "toggle" ? state.toggle : state.facet;
-}
-
 function resetEngine(key) {
-  if (key === "toggle") {
-    state.toggle = {
-      mode: "or",
-      selected: new Set(),
-      expanded: Object.fromEntries(
-        CATEGORIES.map((c) => [c.id, c.id === "department"])
-      ),
-    };
-  } else {
-    state.facet = initialDesignBState(CATEGORIES);
-  }
+  if (key === "toggle") state.toggle = initialDesignAState(CATEGORIES);
+  else state.facet = initialDesignBState(CATEGORIES);
 }
 
 function visibleFor(label, engineOverride) {
   const key = engineKeyForLabel(label);
   const eng = engineOverride || (key === "toggle" ? state.toggle : state.facet);
   if (key === "toggle") {
-    return new Set(filterDesignA(PEOPLE, eng.selected, eng.mode));
+    return new Set(
+      filterDesignA(PEOPLE, eng.selected, eng.mode, LEAF_UNIVERSE)
+    );
   }
   return new Set(filterDesignB(PEOPLE, eng));
 }
@@ -112,32 +102,100 @@ function twistIcon() {
   return `<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4 2.5L8 6 4 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+function setLeaves(selected, leafIds, on) {
+  for (const id of leafIds) {
+    if (on) selected.add(id);
+    else selected.delete(id);
+  }
+}
+
+function toggleLeaves(selected, leafIds) {
+  const allOn = leafIds.every((id) => selected.has(id));
+  setLeaves(selected, leafIds, !allOn);
+}
+
+function renderModeToggle(eng, scope) {
+  const filterOn = eng.mode === "filter";
+  return `<div class="mode-inline">
+    <span class="mode-opt ${!filterOn ? "on" : ""}">多选显示</span>
+    <label class="switch compact">
+      <input type="checkbox" data-scope="${scope}" data-act="t-mode" ${
+        filterOn ? "checked" : ""
+      } />
+      <span class="switch-track"></span>
+    </label>
+    <span class="mode-opt ${filterOn ? "on" : ""}">筛选显示</span>
+  </div>`;
+}
+
 function renderTreeToggle(eng, scope) {
   const accent = "a";
   return CATEGORIES.map((cat) => {
-    const expanded = !!eng.expanded[cat.id];
-    const pState = parentCheckState(cat, eng.selected);
+    const catExpanded = !!eng.expanded[cat.id];
+    const pState = nodeCheckState(cat, eng.selected);
     const checkClass =
       pState === "all" ? `on ${accent}` : pState === "partial" ? `partial ${accent}` : "";
-    const children = cat.children
+    const color = CATEGORY_COLORS[cat.id];
+
+    const level2 = cat.children
       .map((child) => {
-        const on = eng.selected.has(child.id);
+        const hasKids = !!child.children?.length;
+        const midExpanded = !!eng.expanded[child.id];
+        const cState = nodeCheckState(child, eng.selected);
+        const cClass =
+          cState === "all"
+            ? `on ${accent}`
+            : cState === "partial"
+              ? `partial ${accent}`
+              : "";
+
+        const level3 = hasKids
+          ? child.children
+              .map((g) => {
+                const on = eng.selected.has(g.id);
+                return `<div class="tree-node">
+                  <div class="tree-row child lv3" data-scope="${scope}" data-act="t-leaf" data-id="${g.id}">
+                    <span></span>
+                    <span class="checkbox ${on ? `on ${accent}` : ""}">${checkIcon()}</span>
+                    <span class="tree-label">${g.label}</span>
+                  </div>
+                </div>`;
+              })
+              .join("")
+          : "";
+
         return `<div class="tree-node">
-          <div class="tree-row child" data-scope="${scope}" data-act="t-leaf" data-id="${child.id}">
-            <span></span>
-            <span class="checkbox ${on ? `on ${accent}` : ""}" aria-hidden="true">${checkIcon()}</span>
+          <div class="tree-row child lv2" data-scope="${scope}" data-act="${
+            hasKids ? "t-mid" : "t-leaf"
+          }" data-id="${child.id}">
+            ${
+              hasKids
+                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="t-expand" data-id="${child.id}">${twistIcon()}</button>`
+                : `<span></span>`
+            }
+            <span class="checkbox ${cClass}" data-scope="${scope}" data-act="${
+              hasKids ? "t-mid" : "t-leaf"
+            }" data-id="${child.id}">${checkIcon(cState === "partial")}</span>
             <span class="tree-label">${child.label}</span>
           </div>
+          ${
+            hasKids
+              ? `<div class="tree-children ${midExpanded ? "" : "hidden"}">${level3}</div>`
+              : ""
+          }
         </div>`;
       })
       .join("");
+
     return `<div class="tree-node">
-      <div class="tree-row parent ${pState !== "none" ? "active" : ""}">
-        <button class="twist" type="button" aria-expanded="${expanded}" data-scope="${scope}" data-act="t-expand" data-id="${cat.id}">${twistIcon()}</button>
-        <button type="button" class="checkbox ${checkClass}" data-scope="${scope}" data-act="t-parent" data-id="${cat.id}">${checkIcon(pState === "partial")}</button>
-        <span class="tree-label">${cat.label}</span>
+      <div class="tree-row parent" style="--cat-color:${color}">
+        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="t-expand" data-id="${cat.id}">${twistIcon()}</button>
+        <button type="button" class="checkbox ${checkClass}" data-scope="${scope}" data-act="t-parent" data-id="${cat.id}">${checkIcon(
+          pState === "partial"
+        )}</button>
+        <span class="tree-label"><span class="cat-dot" style="background:${color}"></span>${cat.label}</span>
       </div>
-      <div class="tree-children ${expanded ? "" : "hidden"}">${children}</div>
+      <div class="tree-children ${catExpanded ? "" : "hidden"}">${level2}</div>
     </div>`;
   }).join("");
 }
@@ -146,7 +204,7 @@ function renderTreeFacet(eng, scope) {
   const accent = "b";
   return CATEGORIES.map((cat) => {
     const catState = eng[cat.id];
-    const expanded = !!catState.expanded;
+    const catExpanded = !!catState.expanded;
     const pState = parentCheckStateB(cat, catState);
     const enabled = catState.enabled;
     const parentClass =
@@ -157,65 +215,101 @@ function renderTreeFacet(eng, scope) {
           : pState === "partial"
             ? `partial ${accent}`
             : `on ${accent}`;
-    const children = cat.children
+    const color = CATEGORY_COLORS[cat.id];
+
+    const level2 = cat.children
       .map((child) => {
-        const on = catState.selected.has(child.id);
+        const hasKids = !!child.children?.length;
+        const midExpanded = !!eng._midExpanded?.[child.id];
+        const cState = nodeCheckState(child, catState.selected);
+        const cClass =
+          cState === "all"
+            ? `on ${accent}`
+            : cState === "partial"
+              ? `partial ${accent}`
+              : "";
+
+        const level3 = hasKids
+          ? child.children
+              .map((g) => {
+                const on = catState.selected.has(g.id);
+                return `<div class="tree-node">
+                  <div class="tree-row child lv3" data-scope="${scope}" data-act="f-leaf" data-cat="${cat.id}" data-id="${g.id}">
+                    <span></span>
+                    <span class="checkbox ${on ? `on ${accent}` : ""}">${checkIcon()}</span>
+                    <span class="tree-label" style="${enabled ? "" : "opacity:.5"}">${g.label}</span>
+                  </div>
+                </div>`;
+              })
+              .join("")
+          : "";
+
         return `<div class="tree-node">
-          <div class="tree-row child" data-scope="${scope}" data-act="f-leaf" data-cat="${cat.id}" data-id="${child.id}">
-            <span></span>
-            <span class="checkbox ${on ? `on ${accent}` : ""}" aria-hidden="true">${checkIcon()}</span>
+          <div class="tree-row child lv2" data-scope="${scope}" data-act="${
+            hasKids ? "f-mid" : "f-leaf"
+          }" data-cat="${cat.id}" data-id="${child.id}">
+            ${
+              hasKids
+                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="f-mid-expand" data-id="${child.id}">${twistIcon()}</button>`
+                : `<span></span>`
+            }
+            <span class="checkbox ${cClass}" data-scope="${scope}" data-act="${
+              hasKids ? "f-mid" : "f-leaf"
+            }" data-cat="${cat.id}" data-id="${child.id}">${checkIcon(
+              cState === "partial"
+            )}</span>
             <span class="tree-label" style="${enabled ? "" : "opacity:.5"}">${child.label}</span>
           </div>
+          ${
+            hasKids
+              ? `<div class="tree-children ${midExpanded ? "" : "hidden"}">${level3}</div>`
+              : ""
+          }
         </div>`;
       })
       .join("");
+
     return `<div class="tree-node">
-      <div class="tree-row parent ${enabled ? "b-active" : ""}">
-        <button class="twist" type="button" aria-expanded="${expanded}" data-scope="${scope}" data-act="f-expand" data-id="${cat.id}">${twistIcon()}</button>
-        <button type="button" class="checkbox ${parentClass}" data-scope="${scope}" data-act="f-parent" data-id="${cat.id}">${checkIcon(pState === "partial")}</button>
-        <span class="tree-label">${cat.label}</span>
+      <div class="tree-row parent ${enabled ? "b-active" : ""}" style="--cat-color:${color}">
+        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="f-expand" data-id="${cat.id}">${twistIcon()}</button>
+        <button type="button" class="checkbox ${parentClass}" data-scope="${scope}" data-act="f-parent" data-id="${cat.id}">${checkIcon(
+          pState === "partial"
+        )}</button>
+        <span class="tree-label"><span class="cat-dot" style="background:${color}"></span>${cat.label}</span>
       </div>
-      <div class="tree-children ${expanded ? "" : "hidden"}">${children}</div>
+      <div class="tree-children ${catExpanded ? "" : "hidden"}">${level2}</div>
     </div>`;
   }).join("");
-}
-
-function renderModeBar(eng, scope) {
-  const on = eng.mode === "and";
-  return `<div class="mode-switch">
-    <div class="mode-switch-row">
-      <div class="mode-label">${on ? "同时满足所选条件" : "满足任一所选条件"}</div>
-      <label class="switch">
-        <input type="checkbox" data-scope="${scope}" data-act="t-mode" ${on ? "checked" : ""} />
-        <span class="switch-track"></span>
-      </label>
-    </div>
-  </div>`;
 }
 
 function renderPeople(visible) {
   return PEOPLE.map((person) => {
     const isVisible = visible.has(person.id);
+    const color = colorForPerson(person);
     const attrs =
       person.attrs.length === 0
         ? "未绑定分类"
         : person.attrs.map(labelForAttr).join(" · ");
     return `<div class="person ${isVisible ? "visible-person" : "hidden-person"}" style="left:${person.x}%;top:${person.y}%">
-      <div class="dot">${person.name.slice(0, 1)}</div>
+      <div class="dot" style="background:linear-gradient(160deg, color-mix(in srgb, ${color} 80%, white), ${color})">${person.name.slice(0, 1)}</div>
       <div class="person-tip"><strong>${person.name}</strong><br>${attrs}</div>
     </div>`;
   }).join("");
 }
 
-/**
- * @param {'A'|'B'} label
- * @param {object} [opts]
- */
+function legendHtml() {
+  return Object.entries(CATEGORY_COLORS)
+    .map(([id, color]) => {
+      const label = CATEGORIES.find((c) => c.id === id)?.label || id;
+      return `<span class="legend-item"><i style="background:${color}"></i>${label}</span>`;
+    })
+    .join("");
+}
+
 function renderPanel(label, opts = {}) {
   const key = engineKeyForLabel(label);
   const eng =
-    opts.engine ||
-    (key === "toggle" ? state.toggle : state.facet);
+    opts.engine || (key === "toggle" ? state.toggle : state.facet);
   const scope = opts.scope || `solo-${label}`;
   const visible = visibleFor(label, eng);
   const isToggle = key === "toggle";
@@ -226,29 +320,31 @@ function renderPanel(label, opts = {}) {
       <div class="sidebar-head">
         <div class="design-badge ${badgeClass}">方案 ${label}</div>
         <h3>筛选面板</h3>
-        ${isToggle ? renderModeBar(eng, scope) : ""}
       </div>
-      <div class="tree">
-        ${isToggle ? renderTreeToggle(eng, scope) : renderTreeFacet(eng, scope)}
+      <div class="sidebar-body">
+        ${isToggle ? renderModeToggle(eng, scope) : ""}
+        <div class="tree">
+          ${isToggle ? renderTreeToggle(eng, scope) : renderTreeFacet(eng, scope)}
+        </div>
       </div>
     </aside>
     <section class="scene-wrap">
       <div class="task-bar">
         <div>
           <h4>方案 ${label}</h4>
-          <p>勾选分类，观察地图人员显隐。悬停圆点可看属性。</p>
+          <p>勾选标签控制显隐。圆点颜色对应人员所属大类。</p>
         </div>
       </div>
       <div class="scene">
         ${renderPeople(visible)}
-        <div class="scene-legend">亮=显示 · 暗=隐藏 · ${visible.size}/${PEOPLE.length}</div>
-      </div>
-      <div class="stats-bar">
-        <div>显示 <strong>${visible.size}</strong> / ${PEOPLE.length}</div>
+        <div class="scene-legend">
+          <div>亮=显示 · 暗=隐藏 · ${visible.size}/${PEOPLE.length}</div>
+          <div class="legend-row">${legendHtml()}</div>
+        </div>
       </div>
       <div class="footer-actions">
         <div class="btn-row">
-          <button class="btn btn-ghost" type="button" data-scope="${scope}" data-act="reset">重置</button>
+          <button class="btn btn-ghost" type="button" data-scope="${scope}" data-act="reset">重置为全选</button>
         </div>
       </div>
     </section>
@@ -272,7 +368,12 @@ function engineByScope(scope) {
   if (scope === "solo-A" || scope === "solo-B") {
     const label = scope.slice(-1);
     const key = engineKeyForLabel(label);
-    return { key, eng: key === "toggle" ? state.toggle : state.facet, label, compare: false };
+    return {
+      key,
+      eng: key === "toggle" ? state.toggle : state.facet,
+      label,
+      compare: false,
+    };
   }
   if (scope === "cmp-A" || scope === "cmp-B") {
     ensureCompareEngines();
@@ -283,80 +384,105 @@ function engineByScope(scope) {
   return null;
 }
 
-function handleAct(act, scope, dataset) {
-  const ctx = engineByScope(scope);
-  if (!ctx && act !== "nav" && act !== "vote-submit") return;
-  const { key, eng } = ctx || {};
-
-  if (act === "t-expand") {
-    eng.expanded[dataset.id] = !eng.expanded[dataset.id];
-    return true;
-  }
-  if (act === "t-parent") {
-    const cat = CATEGORIES.find((c) => c.id === dataset.id);
-    const pState = parentCheckState(cat, eng.selected);
-    if (pState === "all") cat.children.forEach((c) => eng.selected.delete(c.id));
-    else cat.children.forEach((c) => eng.selected.add(c.id));
-    return true;
-  }
-  if (act === "t-leaf") {
-    const id = dataset.id;
-    if (eng.selected.has(id)) eng.selected.delete(id);
-    else eng.selected.add(id);
-    return true;
-  }
-  if (act === "t-mode") {
-    eng.mode = dataset.checked ? "and" : "or";
-    return true;
-  }
-  if (act === "f-expand") {
-    eng[dataset.id].expanded = !eng[dataset.id].expanded;
-    return true;
-  }
-  if (act === "f-parent") {
-    const id = dataset.id;
-    const catState = eng[id];
-    const cat = CATEGORIES.find((c) => c.id === id);
-    if (!catState.enabled) {
-      catState.enabled = true;
-      catState.expanded = true;
-      catState.selected = new Set(cat.children.map((c) => c.id));
-    } else {
-      const allOn = cat.children.every((c) => catState.selected.has(c.id));
-      if (allOn || catState.selected.size === 0) {
-        catState.enabled = false;
-        catState.selected.clear();
-      } else {
-        cat.children.forEach((c) => catState.selected.add(c.id));
+function findNode(id) {
+  for (const cat of CATEGORIES) {
+    if (cat.id === id) return cat;
+    for (const child of cat.children) {
+      if (child.id === id) return child;
+      if (child.children?.some((g) => g.id === id)) {
+        return child.children.find((g) => g.id === id);
       }
     }
-    return true;
   }
-  if (act === "f-leaf") {
-    const catId = dataset.cat;
-    const id = dataset.id;
-    const catState = eng[catId];
-    if (!catState.enabled) {
-      catState.enabled = true;
-      catState.expanded = true;
+  return null;
+}
+
+function handleAct(act, scope, dataset, extra = {}) {
+  const ctx = engineByScope(scope);
+  if (!ctx) return false;
+  const { key, eng } = ctx;
+
+  if (key === "toggle") {
+    if (act === "t-expand") {
+      eng.expanded[dataset.id] = !eng.expanded[dataset.id];
+      return true;
     }
-    if (catState.selected.has(id)) catState.selected.delete(id);
-    else catState.selected.add(id);
-    if (catState.selected.size === 0) catState.enabled = false;
-    return true;
+    if (act === "t-parent" || act === "t-mid") {
+      const node = findNode(dataset.id);
+      if (!node) return false;
+      toggleLeaves(eng.selected, leafIdsUnder(node));
+      return true;
+    }
+    if (act === "t-leaf") {
+      const id = dataset.id;
+      if (eng.selected.has(id)) eng.selected.delete(id);
+      else eng.selected.add(id);
+      return true;
+    }
+    if (act === "t-mode") {
+      eng.mode = extra.checked ? "filter" : "multi";
+      return true;
+    }
+    if (act === "reset") {
+      if (ctx.compare) {
+        state.compare[ctx.label] = initialDesignAState(CATEGORIES);
+      } else resetEngine("toggle");
+      return true;
+    }
   }
-  if (act === "reset") {
-    if (ctx.compare) {
-      const label = ctx.label;
-      const k = engineKeyForLabel(label);
-      state.compare[label] =
-        k === "toggle"
-          ? { mode: "or", selected: new Set(), expanded: Object.fromEntries(CATEGORIES.map((c) => [c.id, c.id === "department"])) }
-          : initialDesignBState(CATEGORIES);
-    } else {
-      resetEngine(key);
+
+  if (key === "facet") {
+    if (act === "f-expand") {
+      eng[dataset.id].expanded = !eng[dataset.id].expanded;
+      return true;
     }
-    return true;
+    if (act === "f-mid-expand") {
+      eng._midExpanded[dataset.id] = !eng._midExpanded[dataset.id];
+      return true;
+    }
+    if (act === "f-parent") {
+      const id = dataset.id;
+      const catState = eng[id];
+      const cat = CATEGORIES.find((c) => c.id === id);
+      const leaves = leafIdsUnder(cat);
+      if (!catState.enabled) {
+        catState.enabled = true;
+        catState.expanded = true;
+        catState.selected = new Set(leaves);
+      } else {
+        const allOn = leaves.every((x) => catState.selected.has(x));
+        if (allOn || catState.selected.size === 0) {
+          catState.enabled = false;
+          catState.selected.clear();
+        } else {
+          leaves.forEach((x) => catState.selected.add(x));
+        }
+      }
+      return true;
+    }
+    if (act === "f-mid" || act === "f-leaf") {
+      const catId = dataset.cat;
+      const catState = eng[catId];
+      if (!catState.enabled) {
+        catState.enabled = true;
+        catState.expanded = true;
+      }
+      const node = findNode(dataset.id);
+      const leaves = leafIdsUnder(node);
+      if (act === "f-leaf" && leaves.length === 1 && leaves[0] === dataset.id) {
+        if (catState.selected.has(dataset.id)) catState.selected.delete(dataset.id);
+        else catState.selected.add(dataset.id);
+      } else {
+        toggleLeaves(catState.selected, leaves);
+      }
+      if (catState.selected.size === 0) catState.enabled = false;
+      return true;
+    }
+    if (act === "reset") {
+      if (ctx.compare) state.compare[ctx.label] = initialDesignBState(CATEGORIES);
+      else resetEngine("facet");
+      return true;
+    }
   }
   return false;
 }
@@ -384,34 +510,67 @@ function escapeHtml(str) {
 }
 
 function renderNav() {
+  const ab =
+    session.first === "A"
+      ? [
+          { id: "A", label: "方案 A" },
+          { id: "B", label: "方案 B" },
+        ]
+      : [
+          { id: "B", label: "方案 B" },
+          { id: "A", label: "方案 A" },
+        ];
   const items = [
-    { id: "A", label: "方案 A" },
-    { id: "B", label: "方案 B" },
+    { id: "intro", label: "说明" },
+    ...ab,
     { id: "compare", label: "并排对比" },
     { id: "vote", label: "投票" },
     { id: "results", label: "汇总" },
   ];
-  // Show A/B in random first-order in the nav (first label leftmost among A/B)
-  const ab =
-    session.first === "A"
-      ? [items[0], items[1]]
-      : [items[1], items[0]];
-  const ordered = [...ab, items[2], items[3], items[4]];
-  document.getElementById("nav").innerHTML = ordered
+  document.getElementById("nav").innerHTML = items
     .map(
       (it) =>
-        `<button type="button" class="nav-pill ${state.view === it.id ? "active" : ""}" data-act="nav" data-view="${it.id}">${it.label}</button>`
+        `<button type="button" class="nav-pill ${
+          state.view === it.id ? "active" : ""
+        }" data-act="nav" data-view="${it.id}">${it.label}</button>`
     )
     .join("");
+}
+
+function renderIntro() {
+  return `<section class="panel panel-pad">
+    <div class="hero-copy">
+      <h2>显隐筛选交互对比</h2>
+      <p class="lead">
+        场景：一张 2D 示意地图上有若干人员。每人可带有「人员身份 / 部门 / 岗位 / 作业类型」等标签
+        （同一人可属于多个大类；部分标签下还有更细的三级项）。你的操作目标是：按条件控制谁显示、谁隐藏。
+      </p>
+      <p class="lead">
+        这里有两套交互方案（名称已随机对应）。请分别试用，也可并排对比，最后投一票。
+        没有标准答案，按真实使用感受选择即可。约需几分钟。
+      </p>
+    </div>
+    <div class="tag-row">
+      <span class="tag">默认全选 · 全员显示</span>
+      <span class="tag">大类颜色区分</span>
+      <span class="tag">含三级标签</span>
+      <span class="tag">每次打开随机先后</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="button" data-act="nav" data-view="${session.first}">先试方案 ${session.first}</button>
+      <button class="btn btn-secondary" type="button" data-act="nav" data-view="compare">并排对比</button>
+      <button class="btn btn-ghost" type="button" data-act="nav" data-view="vote">直接投票</button>
+    </div>
+  </section>`;
 }
 
 function renderVote() {
   return `<section class="panel panel-pad">
     <h2 class="section-title">投票</h2>
-    <p class="lead">两种方案都试用后再选。可随时回到方案页继续试。</p>
+    <p class="lead">两种都试用后再选也可；可随时回到方案页继续体验。</p>
     <form class="vote-form" id="vote-form">
       <div class="field">
-        <label>你更想在产品里用哪一种？ *</label>
+        <label>更想在产品里用哪一种？ *</label>
         <div class="choice-group">
           <label class="choice"><input type="radio" name="prefer" value="A" required /><span>方案 A</span></label>
           <label class="choice"><input type="radio" name="prefer" value="B" /><span>方案 B</span></label>
@@ -445,11 +604,13 @@ function renderResults() {
         .reverse()
         .map(
           (v) => `<div class="result-card">
-          <div><strong>${v.prefer === "A" ? "倾向 A" : v.prefer === "B" ? "倾向 B" : "不确定"}</strong>
+          <div><strong>${
+            v.prefer === "A" ? "倾向 A" : v.prefer === "B" ? "倾向 B" : "不确定"
+          }</strong>
           · 更清晰：${v.clearer} · ${new Date(v.at).toLocaleString()}</div>
-          <div style="color:var(--text-muted);margin-top:4px">${escapeHtml(v.name || "匿名")}${
-            v.note ? " · " + escapeHtml(v.note) : ""
-          }</div>
+          <div style="color:var(--text-muted);margin-top:4px">${escapeHtml(
+            v.name || "匿名"
+          )}${v.note ? " · " + escapeHtml(v.note) : ""}</div>
         </div>`
         )
         .join("")
@@ -461,7 +622,7 @@ function renderResults() {
       <div class="compare-card"><h3>更想用</h3><p>A <strong>${preferA}</strong>　B <strong>${preferB}</strong>　不确定 <strong>${preferUnsure}</strong></p></div>
       <div class="compare-card"><h3>更好理解</h3><p>A <strong>${clearA}</strong>　B <strong>${clearB}</strong></p></div>
     </div>
-    <p class="lead" style="margin-top:16px">共 ${votes.length} 条（本浏览器）。他人在线投票会发到邮箱。</p>
+    <p class="lead" style="margin-top:16px">共 ${votes.length} 条（本浏览器）。在线投票会发到邮箱，并含 A/B 随机映射。</p>
     <div class="results-list">${list}</div>
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-secondary" type="button" data-act="export">导出 JSON</button>
@@ -473,21 +634,17 @@ function renderResults() {
 function paint() {
   renderNav();
   const main = document.getElementById("main");
-  if (state.view === "A") {
-    main.innerHTML = renderPanel("A", { scope: "solo-A" });
-  } else if (state.view === "B") {
-    main.innerHTML = renderPanel("B", { scope: "solo-B" });
-  } else if (state.view === "compare") {
+  if (state.view === "intro") main.innerHTML = renderIntro();
+  else if (state.view === "A") main.innerHTML = renderPanel("A", { scope: "solo-A" });
+  else if (state.view === "B") main.innerHTML = renderPanel("B", { scope: "solo-B" });
+  else if (state.view === "compare") {
     ensureCompareEngines();
     main.innerHTML = `<div class="compare-workspaces">
       ${renderPanel("A", { scope: "cmp-A", engine: state.compare.A })}
       ${renderPanel("B", { scope: "cmp-B", engine: state.compare.B })}
     </div>`;
-  } else if (state.view === "vote") {
-    main.innerHTML = renderVote();
-  } else if (state.view === "results") {
-    main.innerHTML = renderResults();
-  }
+  } else if (state.view === "vote") main.innerHTML = renderVote();
+  else if (state.view === "results") main.innerHTML = renderResults();
 }
 
 async function submitVote(form) {
@@ -585,13 +742,18 @@ function wire() {
     const act = el.dataset.act;
     if (act === "nav" || act === "t-mode") return;
     const scope = el.dataset.scope;
-    if (handleAct(act, scope, el.dataset)) paint();
+    if (!scope) return;
+    // Prefer act/id from the element that owns the action (avoid twist stealing parent row)
+    if (handleAct(act, scope, el.dataset)) {
+      e.preventDefault();
+      paint();
+    }
   });
 
   root.addEventListener("change", (e) => {
     const el = e.target.closest("[data-act='t-mode']");
     if (!el) return;
-    handleAct("t-mode", el.dataset.scope, {
+    handleAct("t-mode", el.dataset.scope, el.dataset, {
       checked: e.target.checked,
     });
     paint();

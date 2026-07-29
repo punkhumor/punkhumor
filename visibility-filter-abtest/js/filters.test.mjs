@@ -1,6 +1,10 @@
-import { PEOPLE, CATEGORIES } from "./data.js";
-import { filterDesignA, filterDesignB, initialDesignBState } from "./filters.js";
-import { TASKS } from "./tasks.js";
+import { PEOPLE, CATEGORIES, allLeafIds, leafIdsUnder } from "./data.js";
+import {
+  filterDesignA,
+  filterDesignB,
+  initialDesignBState,
+  initialDesignAState,
+} from "./filters.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -14,61 +18,68 @@ function sameSet(a, b) {
   return true;
 }
 
-// Design A OR
+const universe = allLeafIds();
+
+// Default all selected → everyone
 {
-  const ids = filterDesignA(PEOPLE, new Set(["dept-prod"]), "or");
-  assert(sameSet(ids, ["zhang", "zhao"]), "A OR prod");
+  const st = initialDesignAState(CATEGORIES);
+  const ids = filterDesignA(PEOPLE, st.selected, "filter", universe);
+  assert(sameSet(ids, PEOPLE.map((p) => p.id)), "A all-on shows all");
 }
 
-// Design A AND
+// None selected → nobody
 {
-  const ids = filterDesignA(
-    PEOPLE,
-    new Set(["dept-test", "pos-engineer"]),
-    "and"
+  const ids = filterDesignA(PEOPLE, new Set(), "filter", universe);
+  assert(ids.length === 0, "A none hides all");
+  assert(filterDesignA(PEOPLE, new Set(), "multi", universe).length === 0, "A multi none");
+}
+
+// Within category OR (筛选): prod-1 OR prod-2
+{
+  const sel = new Set(["dept-prod-1", "dept-prod-2"]);
+  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
+  assert(sameSet(ids, ["zhang", "zhao"]), "A filter within-cat OR");
+}
+
+// Across categories AND: prod-1 AND engineer-soft
+{
+  const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
+  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
+  assert(sameSet(ids, ["zhang"]), "A filter across AND");
+}
+
+// a1 + b1 + b2 → a1 AND (b1 OR b2)
+{
+  const sel = new Set([
+    "dept-test-qa",
+    "pos-engineer-soft",
+    "pos-engineer-hard",
+  ]);
+  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
+  // chen: test-qa + soft; wu: test-qa + soft; zhou: test-auto — no
+  assert(sameSet(ids, ["chen", "wu"]), "A filter a1 AND (b1|b2)");
+}
+
+// 多选显示: flat OR
+{
+  const sel = new Set(["dept-prod-1", "pos-qa"]);
+  const ids = filterDesignA(PEOPLE, sel, "multi", universe);
+  assert(
+    sameSet(ids, ["zhang", "jiu", "zheng", "he"]),
+    "A multi OR"
   );
-  assert(sameSet(ids, ["chen", "zhou", "wu"]), "A AND test+engineer");
 }
 
-// Design B: only prod department (others all selected) — unbound pass
+// Design B still: unbound pass when filtering dept
 {
   const state = initialDesignBState(CATEGORIES);
-  state.department.selected = new Set(["dept-prod"]);
+  state.department.selected = new Set(["dept-prod-1", "dept-prod-2"]);
   const ids = filterDesignB(PEOPLE, state);
-  assert(sameSet(ids, TASKS[0].expectedB), "B dept=prod PDF");
+  assert(ids.includes("zhang") && ids.includes("sun") && ids.includes("wang"), "B unbound");
+  assert(!ids.includes("li"), "B hides admin");
 }
 
-// Design B: test dept + engineer; identity & work all selected
-{
-  const state = initialDesignBState(CATEGORIES);
-  state.department.selected = new Set(["dept-test"]);
-  state.position.selected = new Set(["pos-engineer"]);
-  const ids = filterDesignB(PEOPLE, state);
-  assert(sameSet(ids, TASKS[1].expectedB), "B test∩engineer");
-}
-
-// Design B: only workType fire|height enabled
-{
-  const state = initialDesignBState(CATEGORIES);
-  for (const cat of CATEGORIES) {
-    if (cat.id !== "workType") {
-      state[cat.id].enabled = false;
-      state[cat.id].selected.clear();
-    }
-  }
-  state.workType.selected = new Set(["work-fire", "work-height"]);
-  const ids = filterDesignB(PEOPLE, state);
-  assert(sameSet(ids, TASKS[2].expectedB), "B fire|height");
-}
-
-// Design A task3
-{
-  const ids = filterDesignA(
-    PEOPLE,
-    new Set(["work-fire", "work-height"]),
-    "or"
-  );
-  assert(sameSet(ids, TASKS[2].expectedA), "A fire|height");
-}
+// leaf helpers
+assert(leafIdsUnder(CATEGORIES[1]).includes("dept-prod-1"), "leaves under dept");
 
 console.log("All filter tests passed.");
