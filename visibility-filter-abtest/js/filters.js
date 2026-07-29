@@ -11,12 +11,70 @@ function isAllSelected(selected, universe) {
 }
 
 /**
- * Design A
- * - multi  多选显示: OR — 带任一所选标签即显示
- * - filter 筛选显示: AND — 必须同时带上每一个所选标签
- * - 全选 → 全显示；全不选 → 全隐藏
+ * Smart AND constraints for 同时命中 / Design B:
+ * - 某大类叶子全选 → 约束为「属于该大类」(有该类任一叶子即可)
+ * - 某二级分组全选 → 约束为「属于该分组」
+ * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）
+ * - 所有约束之间 AND
  */
-export function filterDesignA(people, selectedIds, mode, leafUniverse) {
+export function buildSmartConstraints(selectedIds, categories) {
+  const selected = asSet(selectedIds);
+  const constraints = [];
+
+  for (const cat of categories) {
+    const catLeaves = leafIdsUnder(cat);
+    const selInCat = catLeaves.filter((id) => selected.has(id));
+    if (selInCat.length === 0) continue;
+
+    if (selInCat.length === catLeaves.length) {
+      constraints.push({ type: "any", ids: catLeaves, label: cat.label });
+      continue;
+    }
+
+    for (const child of cat.children) {
+      const leaves = leafIdsUnder(child);
+      const selMid = leaves.filter((id) => selected.has(id));
+      if (selMid.length === 0) continue;
+
+      if (child.children?.length) {
+        if (selMid.length === leaves.length) {
+          constraints.push({ type: "any", ids: leaves, label: child.label });
+        } else {
+          for (const id of selMid) {
+            constraints.push({
+              type: "has",
+              id,
+              label: ATTR_META[id]?.label || id,
+            });
+          }
+        }
+      } else {
+        constraints.push({
+          type: "has",
+          id: child.id,
+          label: child.label,
+        });
+      }
+    }
+  }
+
+  return constraints;
+}
+
+export function matchSmartConstraints(person, constraints) {
+  return constraints.every((c) => {
+    if (c.type === "any") return c.ids.some((id) => person.attrs.includes(id));
+    if (c.type === "has") return person.attrs.includes(c.id);
+    return false;
+  });
+}
+
+/**
+ * Design A (带模式)
+ * - multi  命中其一: OR
+ * - filter 同时命中: smart AND（大类全选按大类，子类未全选按叶子 AND）
+ */
+export function filterDesignA(people, selectedIds, mode, leafUniverse, categories) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
@@ -29,44 +87,27 @@ export function filterDesignA(people, selectedIds, mode, leafUniverse) {
       .map((p) => p.id);
   }
 
-  // 筛选显示：严格 AND
-  const needed = [...selected];
+  const constraints = buildSmartConstraints(selected, categories);
+  if (constraints.length === 0) return [];
   return people
-    .filter((p) => needed.every((id) => p.attrs.includes(id)))
+    .filter((p) => matchSmartConstraints(p, constraints))
     .map((p) => p.id);
 }
 
 /**
- * Design B
- * - 同一大类内所选叶子：OR
- * - 有选中项的大类之间：AND
- * - 例：a1 + b1 + b2 → (有 a1) AND (有 b1 或 b2)
- * - 全选 → 全显示；全不选 → 全隐藏
+ * Design B：始终 smart AND（类内全选按类，未全选叶子 AND，类间 AND）
  */
-export function filterDesignB(people, selectedIds, leafUniverse) {
+export function filterDesignB(people, selectedIds, leafUniverse, categories) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
   if (selected.size === 0) return [];
   if (isAllSelected(selected, universe)) return people.map((p) => p.id);
 
-  const byCat = new Map();
-  for (const id of selected) {
-    const catId = ATTR_META[id]?.categoryId;
-    if (!catId) continue;
-    if (!byCat.has(catId)) byCat.set(catId, []);
-    byCat.get(catId).push(id);
-  }
-
-  const groups = [...byCat.values()];
-  if (groups.length === 0) return [];
-
+  const constraints = buildSmartConstraints(selected, categories);
+  if (constraints.length === 0) return [];
   return people
-    .filter((person) =>
-      groups.every((leafGroup) =>
-        leafGroup.some((id) => person.attrs.includes(id))
-      )
-    )
+    .filter((p) => matchSmartConstraints(p, constraints))
     .map((p) => p.id);
 }
 
@@ -86,7 +127,6 @@ export function initialDesignAState(categories) {
   };
 }
 
-/** Design B uses the same selection/expand shape (no mode switch). */
 export function initialDesignBState(categories) {
   const leaves = allLeafIds(categories);
   const expanded = {};
@@ -114,4 +154,12 @@ export function nodeCheckState(node, selectedIds) {
 
 export function parentCheckState(category, selectedIds) {
   return nodeCheckState(category, selectedIds);
+}
+
+export function clearAllLeaves(categories) {
+  return new Set();
+}
+
+export function selectAllLeaves(categories) {
+  return new Set(allLeafIds(categories));
 }

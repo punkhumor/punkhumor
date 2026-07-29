@@ -1,9 +1,10 @@
-import { PEOPLE, CATEGORIES, allLeafIds } from "./data.js";
+import { PEOPLE, CATEGORIES, allLeafIds, leafIdsUnder } from "./data.js";
 import {
   filterDesignA,
   filterDesignB,
   initialDesignAState,
   initialDesignBState,
+  buildSmartConstraints,
 } from "./filters.js";
 
 function assert(cond, msg) {
@@ -20,72 +21,65 @@ function sameSet(a, b) {
 
 const universe = allLeafIds();
 
-// A/B 全选 → 全员
+// all / none
 {
   const a = initialDesignAState(CATEGORIES);
-  const b = initialDesignBState(CATEGORIES);
   assert(
-    sameSet(
-      filterDesignA(PEOPLE, a.selected, "multi", universe),
-      PEOPLE.map((p) => p.id)
-    ),
+    filterDesignA(PEOPLE, a.selected, "multi", universe, CATEGORIES).length ===
+      PEOPLE.length,
     "A all"
   );
-  assert(
-    sameSet(filterDesignB(PEOPLE, b.selected, universe), PEOPLE.map((p) => p.id)),
-    "B all"
+  assert(filterDesignA(PEOPLE, new Set(), "filter", universe, CATEGORIES).length === 0, "A none");
+  assert(filterDesignB(PEOPLE, new Set(), universe, CATEGORIES).length === 0, "B none");
+}
+
+// A multi OR
+{
+  const ids = filterDesignA(
+    PEOPLE,
+    new Set(["dept-prod-1", "pos-qa"]),
+    "multi",
+    universe,
+    CATEGORIES
   );
+  assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi");
 }
 
-// 全不选 → 无人
-assert(filterDesignA(PEOPLE, new Set(), "multi", universe).length === 0, "A none");
-assert(filterDesignA(PEOPLE, new Set(), "filter", universe).length === 0, "A none filter");
-assert(filterDesignB(PEOPLE, new Set(), universe).length === 0, "B none");
-
-// A 多选 = OR
+// A/B smart: full identity + 生产一组
 {
-  const sel = new Set(["dept-prod-1", "pos-qa"]);
-  const ids = filterDesignA(PEOPLE, sel, "multi", universe);
-  assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi OR");
+  const identityLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
+  const sel = new Set([...identityLeaves, "dept-prod-1"]);
+  const constraints = buildSmartConstraints(sel, CATEGORIES);
+  assert(
+    constraints.some((c) => c.type === "any" && c.label === "人员身份"),
+    "full identity => category any"
+  );
+  assert(
+    constraints.some((c) => c.type === "has" && c.id === "dept-prod-1"),
+    "prod-1 has"
+  );
+  const idsA = filterDesignA(PEOPLE, sel, "filter", universe, CATEGORIES);
+  const idsB = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
+  // zhang has identity + prod-1; he has identity but admin; wang has identity no dept-prod-1
+  assert(sameSet(idsA, ["zhang"]), "A smart");
+  assert(sameSet(idsB, ["zhang"]), "B smart");
 }
 
-// A 筛选 = 严格 AND（每个标签都要有）
+// full 外来人员 mid-group
+{
+  const visitor = CATEGORIES.find((c) => c.id === "identity").children.find(
+    (c) => c.id === "id-visitor"
+  );
+  const sel = new Set(leafIdsUnder(visitor));
+  const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
+  assert(sameSet(ids, ["wang", "he"]), "full visitor group");
+}
+
+// partial leaves AND within smart (two specific leaves)
 {
   const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
-  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
-  assert(sameSet(ids, ["zhang"]), "A filter AND");
-}
-{
-  // a1+b1+b2 在严格 AND 下几乎无人（需同时有三个标签）
-  const sel = new Set([
-    "dept-test-qa",
-    "pos-engineer-soft",
-    "pos-engineer-hard",
-  ]);
-  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
-  assert(ids.length === 0, "A filter AND three tags");
-}
-
-// B：类内 OR、类间 AND
-{
-  const sel = new Set(["dept-prod-1", "dept-prod-2"]);
-  const ids = filterDesignB(PEOPLE, sel, universe);
-  assert(sameSet(ids, ["zhang", "zhao"]), "B within OR");
-}
-{
-  const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
-  const ids = filterDesignB(PEOPLE, sel, universe);
-  assert(sameSet(ids, ["zhang"]), "B across AND");
-}
-{
-  // a1 + b1 + b2 → a1 AND (b1 OR b2)
-  const sel = new Set([
-    "dept-test-qa",
-    "pos-engineer-soft",
-    "pos-engineer-hard",
-  ]);
-  const ids = filterDesignB(PEOPLE, sel, universe);
-  assert(sameSet(ids, ["chen", "wu"]), "B a1 AND (b1|b2)");
+  const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
+  assert(sameSet(ids, ["zhang"]), "partial AND leaves");
 }
 
 console.log("All filter tests passed.");

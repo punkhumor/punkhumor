@@ -13,16 +13,18 @@ import {
   initialDesignAState,
   initialDesignBState,
   nodeCheckState,
+  selectAllLeaves,
+  clearAllLeaves,
 } from "./filters.js";
 
 const OWNER_EMAIL = "punkhumorlyde@163.com";
-const STORAGE_KEY = "visibility-filter-abtest-votes-v4";
+const STORAGE_KEY = "visibility-filter-abtest-votes-v5";
 const LEAF_UNIVERSE = allLeafIds();
 
 const GOALS = [
-  { title: "只显示张三", tip: "尽量让地图上只剩「张三」一人亮着。" },
-  { title: "显示所有质检员", tip: "让岗位为「质检员」的人全部显示。" },
-  { title: "显示供应商来访", tip: "外来人员 → 供应商来访；看看谁还亮着。" },
+  { title: "只显示张三", tip: "地图上尽量只剩「张三」亮着。" },
+  { title: "显示所有质检员", tip: "岗位为「质检员」的人全部显示。" },
+  { title: "显示供应商来访", tip: "外来人员 → 供应商来访。" },
 ];
 
 function freshSession() {
@@ -57,9 +59,14 @@ function engineKeyForLabel(label) {
   return state.map[label];
 }
 
-function resetEngine(key) {
-  if (key === "toggle") state.toggle = initialDesignAState(CATEGORIES);
-  else state.facet = initialDesignBState(CATEGORIES);
+function resetEngine(key, toEmpty = false) {
+  if (key === "toggle") {
+    state.toggle = initialDesignAState(CATEGORIES);
+    if (toEmpty) state.toggle.selected = clearAllLeaves(CATEGORIES);
+  } else {
+    state.facet = initialDesignBState(CATEGORIES);
+    if (toEmpty) state.facet.selected = clearAllLeaves(CATEGORIES);
+  }
 }
 
 function visibleFor(label, engineOverride) {
@@ -67,10 +74,12 @@ function visibleFor(label, engineOverride) {
   const eng = engineOverride || (key === "toggle" ? state.toggle : state.facet);
   if (key === "toggle") {
     return new Set(
-      filterDesignA(PEOPLE, eng.selected, eng.mode, LEAF_UNIVERSE)
+      filterDesignA(PEOPLE, eng.selected, eng.mode, LEAF_UNIVERSE, CATEGORIES)
     );
   }
-  return new Set(filterDesignB(PEOPLE, eng.selected, LEAF_UNIVERSE));
+  return new Set(
+    filterDesignB(PEOPLE, eng.selected, LEAF_UNIVERSE, CATEGORIES)
+  );
 }
 
 function showToast(message) {
@@ -104,17 +113,18 @@ function toggleLeaves(selected, leafIds) {
   setLeaves(selected, leafIds, !allOn);
 }
 
+/** Segmented control — clearer than a naked switch */
 function renderModeToggle(eng, scope) {
-  const filterOn = eng.mode === "filter";
-  return `<div class="mode-inline">
-    <span class="mode-opt ${!filterOn ? "on" : ""}">多选显示</span>
-    <label class="switch compact">
-      <input type="checkbox" data-scope="${scope}" data-act="t-mode" ${
-        filterOn ? "checked" : ""
-      } />
-      <span class="switch-track"></span>
-    </label>
-    <span class="mode-opt ${filterOn ? "on" : ""}">筛选显示</span>
+  const multi = eng.mode === "multi";
+  return `<div class="mode-seg" role="group" aria-label="匹配方式">
+    <button type="button" class="mode-seg-btn ${multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">
+      <strong>命中其一</strong>
+      <span>带任一所选标签就显示</span>
+    </button>
+    <button type="button" class="mode-seg-btn ${!multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">
+      <strong>同时命中</strong>
+      <span>大类全选按类；未全选的子类要同时满足</span>
+    </button>
   </div>`;
 }
 
@@ -204,6 +214,38 @@ function renderPeople(visible) {
   }).join("");
 }
 
+function renderRoster(visible) {
+  return `<div class="roster">
+    <div class="roster-head">人员对照 <span>${visible.size}/${PEOPLE.length}</span></div>
+    <div class="roster-list">
+      ${PEOPLE.map((p) => {
+        const on = visible.has(p.id);
+        const color = colorForPerson(p);
+        const attrs =
+          p.attrs.length === 0
+            ? "未绑定"
+            : p.attrs.map(labelForAttr).join(" · ");
+        return `<div class="roster-row ${on ? "on" : "off"}">
+          <i style="background:${color}"></i>
+          <div>
+            <strong>${p.name}</strong>
+            <p>${attrs}</p>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderGoalsSide() {
+  return `<div class="side-goals">
+    <div class="roster-head">小目标</div>
+    ${GOALS.map(
+      (g, i) => `<div class="side-goal"><b>${i + 1}. ${g.title}</b><span>${g.tip}</span></div>`
+    ).join("")}
+  </div>`;
+}
+
 function legendHtml() {
   return Object.entries(CATEGORY_COLORS)
     .map(([id, color]) => {
@@ -222,8 +264,9 @@ function renderPanel(label, opts = {}) {
   const isToggle = key === "toggle";
   const badgeClass = label === "A" ? "a" : "b";
   const accent = isToggle ? "a" : "b";
+  const compact = !!opts.compact;
 
-  return `<div class="workspace panel" data-panel="${label}">
+  return `<div class="workspace panel ${compact ? "compact" : ""}" data-panel="${label}">
     <aside class="sidebar">
       <div class="sidebar-head">
         <div class="design-badge ${badgeClass}">方案 ${label}</div>
@@ -233,14 +276,12 @@ function renderPanel(label, opts = {}) {
         ${isToggle ? renderModeToggle(eng, scope) : ""}
         <div class="tree">${renderTree(eng, scope, accent)}</div>
       </div>
+      <div class="sidebar-foot">
+        <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-on">重置全选</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-off">重置全关</button>
+      </div>
     </aside>
     <section class="scene-wrap">
-      <div class="task-bar">
-        <div>
-          <h4>方案 ${label}</h4>
-          <p>勾选标签控制显隐。圆点颜色对应所属大类。</p>
-        </div>
-      </div>
       <div class="scene">
         ${renderPeople(visible)}
         <div class="scene-legend">
@@ -248,12 +289,15 @@ function renderPanel(label, opts = {}) {
           <div class="legend-row">${legendHtml()}</div>
         </div>
       </div>
-      <div class="footer-actions">
-        <div class="btn-row">
-          <button class="btn btn-ghost" type="button" data-scope="${scope}" data-act="reset">重置为全选</button>
-        </div>
-      </div>
     </section>
+    ${
+      compact
+        ? ""
+        : `<aside class="side-rail">
+      ${renderGoalsSide()}
+      ${renderRoster(visible)}
+    </aside>`
+    }
   </div>`;
 }
 
@@ -304,7 +348,7 @@ function findNode(id) {
   return null;
 }
 
-function handleAct(act, scope, dataset, extra = {}) {
+function handleAct(act, scope, dataset) {
   const ctx = engineByScope(scope);
   if (!ctx) return false;
   const { key, eng } = ctx;
@@ -325,18 +369,34 @@ function handleAct(act, scope, dataset, extra = {}) {
     else eng.selected.add(id);
     return true;
   }
-  if (act === "t-mode") {
+  if (act === "t-mode-set") {
     if (key !== "toggle") return false;
-    eng.mode = extra.checked ? "filter" : "multi";
+    eng.mode = dataset.mode === "filter" ? "filter" : "multi";
     return true;
   }
-  if (act === "reset") {
+  if (act === "reset-on") {
     if (ctx.compare) {
-      state.compare[ctx.label] =
+      const next =
         key === "toggle"
           ? initialDesignAState(CATEGORIES)
           : initialDesignBState(CATEGORIES);
-    } else resetEngine(key);
+      next.mode = eng.mode;
+      state.compare[ctx.label] = next;
+    } else {
+      const mode = eng.mode;
+      resetEngine(key, false);
+      if (key === "toggle") state.toggle.mode = mode;
+    }
+    return true;
+  }
+  if (act === "reset-off") {
+    if (ctx.compare) {
+      eng.selected = clearAllLeaves(CATEGORIES);
+    } else {
+      const mode = eng.mode;
+      resetEngine(key, true);
+      if (key === "toggle") state.toggle.mode = mode;
+    }
     return true;
   }
   return false;
@@ -354,14 +414,6 @@ function addVote(vote) {
   const votes = getVotes();
   votes.push(vote);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(votes));
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }
 
 function renderNav() {
@@ -408,49 +460,37 @@ function renderIntro() {
       <h2>显隐筛选交互对比</h2>
       <p class="lead">
         地图上有若干人员，每人可带多个分类标签（含部分三级标签）。用左侧勾选控制谁显示、谁隐藏。
-        两套方案名称已随机对应，请分别试用或并排对比，最后投一票。
+        两套方案名称已随机对应，请分别试用或并排对比，最后在「投票」里选一个即可。
       </p>
     </div>
-
-    <h3 class="section-title" style="font-size:1.05rem;margin-top:8px">试试这些小目标</h3>
+    <h3 class="section-title" style="font-size:1.05rem;margin-top:8px">小目标（操作页右侧也会显示）</h3>
     <div class="goal-list">${goals}</div>
-
     <div class="tag-row">
       <span class="tag">默认全选 · 全员显示</span>
       <span class="tag">可随时跳转</span>
       <span class="tag">每次打开随机先后</span>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-primary" type="button" data-act="nav" data-view="${session.first}">先试方案 ${session.first}</button>
-      <button class="btn btn-secondary" type="button" data-act="nav" data-view="compare">并排对比</button>
-      <button class="btn btn-ghost" type="button" data-act="nav" data-view="vote">直接投票</button>
-    </div>
   </section>`;
 }
 
 function renderVote() {
-  return `<section class="panel panel-pad">
-    <h2 class="section-title">投票</h2>
-    <p class="lead">两种都试用后再选也可；可随时回到方案页继续体验。</p>
+  return `<section class="panel panel-pad vote-simple">
+    <h2 class="section-title">投给谁？</h2>
+    <p class="lead">选一个更顺手的方案。</p>
     <form class="vote-form" id="vote-form">
-      <div class="field">
-        <label>更想在产品里用哪一种？ *</label>
-        <div class="choice-group">
-          <label class="choice"><input type="radio" name="prefer" value="A" required /><span>方案 A</span></label>
-          <label class="choice"><input type="radio" name="prefer" value="B" /><span>方案 B</span></label>
-          <label class="choice"><input type="radio" name="prefer" value="unsure" /><span>不好说</span></label>
-        </div>
+      <div class="choice-group vote-big">
+        <label class="choice vote-choice">
+          <input type="radio" name="prefer" value="A" required />
+          <span>方案 A</span>
+        </label>
+        <label class="choice vote-choice">
+          <input type="radio" name="prefer" value="B" />
+          <span>方案 B</span>
+        </label>
       </div>
-      <div class="field">
-        <label>哪种更好理解？ *</label>
-        <div class="choice-group">
-          <label class="choice"><input type="radio" name="clearer" value="A" required /><span>方案 A</span></label>
-          <label class="choice"><input type="radio" name="clearer" value="B" /><span>方案 B</span></label>
-        </div>
+      <div class="btn-row" style="margin-top:18px">
+        <button class="btn btn-primary" type="submit">提交</button>
       </div>
-      <div class="field"><label for="name">称呼（可选）</label><input id="name" name="name" maxlength="40" /></div>
-      <div class="field"><label for="note">理由（可选）</label><textarea id="note" name="note" rows="3" maxlength="500"></textarea></div>
-      <div class="btn-row"><button class="btn btn-primary" type="submit">提交投票</button></div>
     </form>
   </section>`;
 }
@@ -459,22 +499,15 @@ function renderResults() {
   const votes = getVotes();
   const preferA = votes.filter((v) => v.prefer === "A").length;
   const preferB = votes.filter((v) => v.prefer === "B").length;
-  const preferUnsure = votes.filter((v) => v.prefer === "unsure").length;
-  const clearA = votes.filter((v) => v.clearer === "A").length;
-  const clearB = votes.filter((v) => v.clearer === "B").length;
   const list = votes.length
     ? votes
         .slice()
         .reverse()
         .map(
           (v) => `<div class="result-card">
-          <div><strong>${
-            v.prefer === "A" ? "倾向 A" : v.prefer === "B" ? "倾向 B" : "不确定"
-          }</strong>
-          · 更清晰：${v.clearer} · ${new Date(v.at).toLocaleString()}</div>
-          <div style="color:var(--text-muted);margin-top:4px">${escapeHtml(
-            v.name || "匿名"
-          )}${v.note ? " · " + escapeHtml(v.note) : ""}</div>
+          <div><strong>投给方案 ${v.prefer}</strong> · ${new Date(
+            v.at
+          ).toLocaleString()}</div>
         </div>`
         )
         .join("")
@@ -483,11 +516,10 @@ function renderResults() {
   return `<section class="panel panel-pad">
     <h2 class="section-title">本机汇总</h2>
     <div class="compare-grid">
-      <div class="compare-card"><h3>更想用</h3><p>A <strong>${preferA}</strong>　B <strong>${preferB}</strong>　不确定 <strong>${preferUnsure}</strong></p></div>
-      <div class="compare-card"><h3>更好理解</h3><p>A <strong>${clearA}</strong>　B <strong>${clearB}</strong></p></div>
+      <div class="compare-card"><h3>方案 A</h3><p><strong>${preferA}</strong> 票</p></div>
+      <div class="compare-card"><h3>方案 B</h3><p><strong>${preferB}</strong> 票</p></div>
     </div>
-    <p class="lead" style="margin-top:16px">共 ${votes.length} 条（本浏览器）。在线投票会发到邮箱，并含 A/B 随机映射。</p>
-    <div class="results-list">${list}</div>
+    <div class="results-list" style="margin-top:16px">${list}</div>
     <div class="btn-row" style="margin-top:20px">
       <button class="btn btn-secondary" type="button" data-act="export">导出 JSON</button>
       <button class="btn btn-ghost" type="button" data-act="clear-votes">清除本机记录</button>
@@ -504,8 +536,8 @@ function paint() {
   else if (state.view === "compare") {
     ensureCompareEngines();
     main.innerHTML = `<div class="compare-workspaces">
-      ${renderPanel("A", { scope: "cmp-A", engine: state.compare.A })}
-      ${renderPanel("B", { scope: "cmp-B", engine: state.compare.B })}
+      ${renderPanel("A", { scope: "cmp-A", engine: state.compare.A, compact: true })}
+      ${renderPanel("B", { scope: "cmp-B", engine: state.compare.B, compact: true })}
     </div>`;
   } else if (state.view === "vote") main.innerHTML = renderVote();
   else if (state.view === "results") main.innerHTML = renderResults();
@@ -513,23 +545,18 @@ function paint() {
 
 async function submitVote(form) {
   const fd = new FormData(form);
+  const prefer = fd.get("prefer");
+  if (!prefer) return;
   const vote = {
-    prefer: fd.get("prefer"),
-    clearer: fd.get("clearer"),
-    name: (fd.get("name") || "").trim(),
-    note: (fd.get("note") || "").trim(),
+    prefer,
     map: state.map,
     first: session.first,
     at: Date.now(),
   };
   addVote(vote);
 
-  const text = `【显隐筛选投票】
-倾向: ${vote.prefer}
-更清晰: ${vote.clearer}
-称呼: ${vote.name || "匿名"}
-备注: ${vote.note || "(无)"}
-映射: A=${vote.map.A}, B=${vote.map.B}, 先见=${vote.first}
+  const text = `【显隐筛选投票】投给方案 ${vote.prefer}
+映射: A=${vote.map.A}, B=${vote.map.B}
 时间: ${new Date(vote.at).toLocaleString()}`;
 
   let emailed = false;
@@ -539,9 +566,11 @@ async function submitVote(form) {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          ...vote,
+          prefer: vote.prefer,
           map: JSON.stringify(vote.map),
-          _subject: `[显隐筛选] 倾向方案${vote.prefer}`,
+          first: vote.first,
+          at: new Date(vote.at).toISOString(),
+          _subject: `[显隐筛选] 投给方案${vote.prefer}`,
           _template: "table",
         }),
       });
@@ -560,7 +589,7 @@ async function submitVote(form) {
     }
     const a = document.createElement("a");
     a.href = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(
-      `[显隐筛选] 倾向方案${vote.prefer}`
+      `[显隐筛选] 投给方案${vote.prefer}`
     )}&body=${encodeURIComponent(text)}`;
     a.click();
     showToast("已复制并打开邮件");
@@ -604,22 +633,13 @@ function wire() {
     const el = e.target.closest("[data-act]");
     if (!el) return;
     const act = el.dataset.act;
-    if (act === "nav" || act === "t-mode") return;
+    if (act === "nav") return;
     const scope = el.dataset.scope;
     if (!scope) return;
     if (handleAct(act, scope, el.dataset)) {
       e.preventDefault();
       paint();
     }
-  });
-
-  root.addEventListener("change", (e) => {
-    const el = e.target.closest("[data-act='t-mode']");
-    if (!el) return;
-    handleAct("t-mode", el.dataset.scope, el.dataset, {
-      checked: e.target.checked,
-    });
-    paint();
   });
 
   root.addEventListener("submit", (e) => {
