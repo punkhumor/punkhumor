@@ -647,25 +647,47 @@ async function submitVote(formData) {
     _template: "table",
   };
 
-  try {
-    const res = await fetch(`https://formsubmit.co/ajax/${OWNER_EMAIL}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error("fail");
-    showToast("投票已提交");
-  } catch {
-    const text = `显隐筛选投票\n倾向: ${vote.prefer}\n更清晰: ${vote.clearer}\n姓名: ${vote.name || "匿名"}\n备注: ${vote.note || "(无)"}\n时间: ${new Date(vote.at).toLocaleString()}`;
+  const text = `【显隐筛选A/B投票】
+倾向方案: ${vote.prefer}
+更好理解: ${vote.clearer}
+称呼: ${vote.name || "匿名"}
+备注: ${vote.note || "(无)"}
+任务记录: ${JSON.stringify(vote.taskAttempts)}
+时间: ${new Date(vote.at).toLocaleString()}`;
+
+  let emailed = false;
+  if (location.protocol !== "file:") {
+    try {
+      const res = await fetch(`https://formsubmit.co/ajax/${OWNER_EMAIL}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("fail");
+      emailed = true;
+      showToast("投票已提交到邮箱");
+    } catch {
+      emailed = false;
+    }
+  }
+
+  if (!emailed) {
     try {
       await navigator.clipboard.writeText(text);
-      showToast("邮件暂不可用，投票文案已复制，可发给设计者");
     } catch {
-      showToast("已保存在本机，请把投票内容发给设计者");
+      /* ignore */
     }
+    const mailto = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(
+      `[显隐筛选A/B] 倾向方案${vote.prefer}`
+    )}&body=${encodeURIComponent(text)}`;
+    const a = document.createElement("a");
+    a.href = mailto;
+    a.rel = "noopener";
+    a.click();
+    showToast("已复制投票内容，并打开邮件发给设计者");
   }
 
   state.step = "done";

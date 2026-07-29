@@ -4,6 +4,7 @@
 
 | 原型 | 说明 |
 |------|------|
-| [visibility-filter-abtest](./visibility-filter-abtest/) | 三维/地图人员显隐筛选：方案 A（且或开关）vs 方案 B（PDF 分面），可分享投票 |
+| [打开即用-显隐筛选AB测试.html](../打开即用-显隐筛选AB测试.html) | **双击打开**即可对比两种显隐筛选并投票（2D 示意） |
 
-> 若希望独立仓库托管，可把对应子目录拆成新 repo，并开启 GitHub Pages 方便把链接发给测试者。
+源码目录：[visibility-filter-abtest](../visibility-filter-abtest/)
+
