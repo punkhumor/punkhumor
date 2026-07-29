@@ -21,9 +21,14 @@ const STORAGE_KEY = "visibility-filter-abtest-votes-v5";
 const LEAF_UNIVERSE = allLeafIds();
 
 const GOALS = [
-  { title: "只显示张三", tip: "地图上尽量只剩「张三」亮着。" },
-  { title: "显示所有质检员", tip: "岗位为「质检员」的人全部显示。" },
-  { title: "显示供应商来访", tip: "外来人员 → 供应商来访。" },
+  { title: "只显示张三", tip: "地图上只剩张三亮着。" },
+  { title: "所有质检员", tip: "岗位勾选「质检员」。" },
+  { title: "供应商来访", tip: "外来人员 → 供应商来访。" },
+  { title: "整个外来人员", tip: "全选「外来人员」分组。" },
+  { title: "生产一组工程师", tip: "生产一组 + 工程师相关。" },
+  { title: "任意动火相关", tip: "动火作业或其子项。" },
+  { title: "身份+生产一组", tip: "人员身份全选，再加生产一组。" },
+  { title: "清空全关", tip: "点「重置全关」，应无人显示。" },
 ];
 
 function freshSession() {
@@ -112,18 +117,16 @@ function toggleLeaves(selected, leafIds) {
   setLeaves(selected, leafIds, !allOn);
 }
 
-/** Segmented control — clearer than a naked switch */
+/** Switch row: looks like it drives how list checks are interpreted */
 function renderModeToggle(eng, scope) {
-  const multi = eng.mode === "multi";
-  return `<div class="mode-seg" role="group" aria-label="匹配方式">
-    <button type="button" class="mode-seg-btn ${multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">
-      <strong>命中其一</strong>
-      <span>带任一所选标签就显示</span>
-    </button>
-    <button type="button" class="mode-seg-btn ${!multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">
-      <strong>同时命中</strong>
-      <span>大类全选按类；未全选的子类要同时满足</span>
-    </button>
+  const filterOn = eng.mode === "filter";
+  return `<div class="mode-switch-bar">
+    <button type="button" class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">多选显示</button>
+    <label class="switch mode-switch" title="切换列表匹配方式">
+      <input type="checkbox" data-scope="${scope}" data-act="t-mode-check" ${filterOn ? "checked" : ""} />
+      <span class="switch-track"></span>
+    </label>
+    <button type="button" class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">匹配显示</button>
   </div>`;
 }
 
@@ -373,6 +376,11 @@ function handleAct(act, scope, dataset) {
     eng.mode = dataset.mode === "filter" ? "filter" : "multi";
     return true;
   }
+  if (act === "t-mode-check") {
+    if (key !== "toggle") return false;
+    eng.mode = dataset.checked ? "filter" : "multi";
+    return true;
+  }
   if (act === "reset-on") {
     if (ctx.compare) {
       const next =
@@ -454,20 +462,18 @@ function renderIntro() {
     </div>`
   ).join("");
 
-  return `<section class="panel panel-pad">
+  return `<section class="panel panel-pad intro-fit">
     <div class="hero-copy">
       <h2>显隐筛选交互对比</h2>
       <p class="lead">
-        地图上有若干人员，每人可带多个分类标签（含部分三级标签）。用左侧勾选控制谁显示、谁隐藏。
-        两套方案名称已随机对应，请分别试用或并排对比，最后在「投票」里选一个即可。
+        用左侧勾选控制地图人员显隐。两套方案名称已随机对应，试用后到「投票」选一个即可。
       </p>
     </div>
-    <h3 class="section-title" style="font-size:1.05rem;margin-top:8px">小目标（操作页右侧也会显示）</h3>
-    <div class="goal-list">${goals}</div>
+    <div class="goal-list goal-grid">${goals}</div>
     <div class="tag-row">
-      <span class="tag">默认全选 · 全员显示</span>
+      <span class="tag">默认全选</span>
       <span class="tag">可随时跳转</span>
-      <span class="tag">每次打开随机先后</span>
+      <span class="tag">每次随机先后</span>
     </div>
   </section>`;
 }
@@ -632,13 +638,22 @@ function wire() {
     const el = e.target.closest("[data-act]");
     if (!el) return;
     const act = el.dataset.act;
-    if (act === "nav") return;
+    if (act === "nav" || act === "t-mode-check") return;
     const scope = el.dataset.scope;
     if (!scope) return;
     if (handleAct(act, scope, el.dataset)) {
       e.preventDefault();
       paint();
     }
+  });
+
+  root.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-act='t-mode-check']");
+    if (!el) return;
+    handleAct("t-mode-check", el.dataset.scope, {
+      checked: e.target.checked,
+    });
+    paint();
   });
 
   root.addEventListener("submit", (e) => {

@@ -39,7 +39,8 @@
 html,
 body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
   background:
     radial-gradient(1200px 700px at 10% -10%, rgba(43, 184, 166, 0.12), transparent 55%),
     radial-gradient(900px 600px at 100% 0%, rgba(74, 163, 232, 0.1), transparent 50%),
@@ -51,7 +52,7 @@ body {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100%;
 }
 
 button,
@@ -73,25 +74,86 @@ a {
 }
 
 .app-shell {
-  width: min(1480px, calc(100% - 24px));
+  width: min(1480px, calc(100% - 20px));
   margin: 0 auto;
-  padding: 16px 0 40px;
+  padding: 10px 0 12px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .topbar {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 28px;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .brand {
   font-family: var(--font-display);
-  font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
   font-weight: 620;
   letter-spacing: -0.03em;
   margin: 0;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+#main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#main > .panel,
+#main > .workspace,
+#main > .compare-workspaces {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-pad {
+  padding: 16px 18px;
+  overflow: auto;
+}
+
+.intro-fit {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.intro-fit .lead {
+  margin-bottom: 10px;
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.goal-card {
+  padding: 8px 10px;
+}
+
+.goal-card p {
+  font-size: 0.8rem;
 }
 
 .brand span {
@@ -100,24 +162,17 @@ a {
 
 .topbar-meta {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   text-align: right;
-}
-
-.steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 24px;
 }
 
 .nav-pill,
 .step-pill {
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
   color: var(--text-muted);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   transition: 0.2s ease;
   background: transparent;
 }
@@ -137,26 +192,6 @@ a {
 .step-pill.done {
   color: var(--ok);
   border-color: rgba(94, 207, 138, 0.35);
-}
-
-.compare-workspaces {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 1100px) {
-  .compare-workspaces {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .compare-workspaces .workspace {
-    min-height: 560px;
-  }
-
-  .compare-workspaces .scene {
-    min-height: 280px;
-  }
 }
 
 
@@ -257,13 +292,38 @@ a {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(220px, 280px);
-  min-height: calc(100vh - 140px);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(200px, 250px);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .workspace.compact {
-  grid-template-columns: minmax(260px, 320px) 1fr;
-  min-height: 560px;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  min-height: 0;
+  height: 100%;
+}
+
+.compare-workspaces {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1100px) {
+  .compare-workspaces {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-workspaces .workspace {
+    min-height: 0;
+  }
+
+  .compare-workspaces .scene {
+    min-height: 0;
+  }
 }
 
 .sidebar {
@@ -286,56 +346,57 @@ a {
   overflow: hidden;
 }
 
-.mode-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.mode-seg {
+.mode-switch-bar {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 8px;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.mode-seg-btn {
-  text-align: left;
-  padding: 10px 10px;
+.mode-side {
+  padding: 8px 6px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-muted);
-  line-height: 1.35;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: center;
 }
 
-.mode-seg-btn strong {
-  display: block;
-  font-size: 0.88rem;
-  color: var(--text);
-  margin-bottom: 2px;
+.mode-side.active {
+  color: #0b1c28;
+  background: linear-gradient(180deg, #7ec8ff, #4aa3e8);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(74, 163, 232, 0.35);
 }
 
-.mode-seg-btn span {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+.mode-switch.switch {
+  width: 48px;
+  height: 28px;
 }
 
-.mode-seg-btn.on {
-  border-color: rgba(74, 163, 232, 0.55);
-  background: color-mix(in srgb, var(--design-a) 18%, transparent);
-  color: var(--text);
+.mode-switch .switch-track {
+  background: #3a4654;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.mode-seg-btn.on strong {
-  color: #9fd0ff;
+.mode-switch input:checked + .switch-track {
+  background: var(--design-a);
+}
+
+.mode-switch .switch-track::after {
+  width: 22px;
+  height: 22px;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.mode-switch input:checked + .switch-track::after {
+  transform: translateX(20px);
 }
 
 .sidebar-foot {
@@ -445,7 +506,72 @@ a {
 }
 
 .scene {
-  min-height: 520px;
+  min-height: 0;
+  flex: 1;
+}
+
+.scene-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.side-goals {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.side-goal {
+  padding: 5px 0;
+}
+
+.side-goal b {
+  font-size: 0.78rem;
+}
+
+.side-goal span {
+  font-size: 0.7rem;
+}
+
+.roster {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.roster-row {
+  padding: 5px 6px;
+}
+
+.roster-row p {
+  font-size: 0.68rem;
+}
+
+.sidebar-head {
+  padding: 10px 12px 8px;
+}
+
+.sidebar-head h3 {
+  font-size: 0.95rem;
+}
+
+.sidebar-foot {
+  padding: 8px 10px;
+}
+
+.person {
+  width: 38px;
+  height: 38px;
+}
+
+.person .dot {
+  width: 30px;
+  height: 30px;
+  font-size: 0.68rem;
 }
 
 .vote-big {
@@ -1484,8 +1610,8 @@ function matchSmartConstraints(person, constraints) {
 
 /**
  * Design A (带模式)
- * - multi  命中其一: OR
- * - filter 同时命中: smart AND（大类全选按大类，子类未全选按叶子 AND）
+ * - multi  多选显示: OR
+ * - filter 匹配显示: smart AND（大类全选按大类，子类未全选按叶子 AND）
  */
 function filterDesignA(
   people,
@@ -1594,9 +1720,14 @@ const STORAGE_KEY = "visibility-filter-abtest-votes-v5";
 const LEAF_UNIVERSE = allLeafIds();
 
 const GOALS = [
-  { title: "只显示张三", tip: "地图上尽量只剩「张三」亮着。" },
-  { title: "显示所有质检员", tip: "岗位为「质检员」的人全部显示。" },
-  { title: "显示供应商来访", tip: "外来人员 → 供应商来访。" },
+  { title: "只显示张三", tip: "地图上只剩张三亮着。" },
+  { title: "所有质检员", tip: "岗位勾选「质检员」。" },
+  { title: "供应商来访", tip: "外来人员 → 供应商来访。" },
+  { title: "整个外来人员", tip: "全选「外来人员」分组。" },
+  { title: "生产一组工程师", tip: "生产一组 + 工程师相关。" },
+  { title: "任意动火相关", tip: "动火作业或其子项。" },
+  { title: "身份+生产一组", tip: "人员身份全选，再加生产一组。" },
+  { title: "清空全关", tip: "点「重置全关」，应无人显示。" },
 ];
 
 function freshSession() {
@@ -1685,18 +1816,16 @@ function toggleLeaves(selected, leafIds) {
   setLeaves(selected, leafIds, !allOn);
 }
 
-/** Segmented control — clearer than a naked switch */
+/** Switch row: looks like it drives how list checks are interpreted */
 function renderModeToggle(eng, scope) {
-  const multi = eng.mode === "multi";
-  return `<div class="mode-seg" role="group" aria-label="匹配方式">
-    <button type="button" class="mode-seg-btn ${multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">
-      <strong>命中其一</strong>
-      <span>带任一所选标签就显示</span>
-    </button>
-    <button type="button" class="mode-seg-btn ${!multi ? "on" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">
-      <strong>同时命中</strong>
-      <span>大类全选按类；未全选的子类要同时满足</span>
-    </button>
+  const filterOn = eng.mode === "filter";
+  return `<div class="mode-switch-bar">
+    <button type="button" class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">多选显示</button>
+    <label class="switch mode-switch" title="切换列表匹配方式">
+      <input type="checkbox" data-scope="${scope}" data-act="t-mode-check" ${filterOn ? "checked" : ""} />
+      <span class="switch-track"></span>
+    </label>
+    <button type="button" class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">匹配显示</button>
   </div>`;
 }
 
@@ -1946,6 +2075,11 @@ function handleAct(act, scope, dataset) {
     eng.mode = dataset.mode === "filter" ? "filter" : "multi";
     return true;
   }
+  if (act === "t-mode-check") {
+    if (key !== "toggle") return false;
+    eng.mode = dataset.checked ? "filter" : "multi";
+    return true;
+  }
   if (act === "reset-on") {
     if (ctx.compare) {
       const next =
@@ -2027,20 +2161,18 @@ function renderIntro() {
     </div>`
   ).join("");
 
-  return `<section class="panel panel-pad">
+  return `<section class="panel panel-pad intro-fit">
     <div class="hero-copy">
       <h2>显隐筛选交互对比</h2>
       <p class="lead">
-        地图上有若干人员，每人可带多个分类标签（含部分三级标签）。用左侧勾选控制谁显示、谁隐藏。
-        两套方案名称已随机对应，请分别试用或并排对比，最后在「投票」里选一个即可。
+        用左侧勾选控制地图人员显隐。两套方案名称已随机对应，试用后到「投票」选一个即可。
       </p>
     </div>
-    <h3 class="section-title" style="font-size:1.05rem;margin-top:8px">小目标（操作页右侧也会显示）</h3>
-    <div class="goal-list">${goals}</div>
+    <div class="goal-list goal-grid">${goals}</div>
     <div class="tag-row">
-      <span class="tag">默认全选 · 全员显示</span>
+      <span class="tag">默认全选</span>
       <span class="tag">可随时跳转</span>
-      <span class="tag">每次打开随机先后</span>
+      <span class="tag">每次随机先后</span>
     </div>
   </section>`;
 }
@@ -2205,13 +2337,22 @@ function wire() {
     const el = e.target.closest("[data-act]");
     if (!el) return;
     const act = el.dataset.act;
-    if (act === "nav") return;
+    if (act === "nav" || act === "t-mode-check") return;
     const scope = el.dataset.scope;
     if (!scope) return;
     if (handleAct(act, scope, el.dataset)) {
       e.preventDefault();
       paint();
     }
+  });
+
+  root.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-act='t-mode-check']");
+    if (!el) return;
+    handleAct("t-mode-check", el.dataset.scope, {
+      checked: e.target.checked,
+    });
+    paint();
   });
 
   root.addEventListener("submit", (e) => {

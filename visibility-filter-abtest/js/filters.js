@@ -80,8 +80,8 @@ export function matchSmartConstraints(person, constraints) {
 
 /**
  * Design A (带模式)
- * - multi  命中其一: OR
- * - filter 同时命中: smart AND（大类全选按大类，子类未全选按叶子 AND）
+ * - multi  多选显示: OR
+ * - filter 匹配显示: smart AND（大类全选按大类，子类未全选按叶子 AND）
  */
 export function filterDesignA(
   people,
