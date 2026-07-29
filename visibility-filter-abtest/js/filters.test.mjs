@@ -80,10 +80,15 @@ const universe = allLeafIds();
   assert(sameSet(ids, ["chen", "wu"]), "B cross AND");
 }
 
-// B: full identity + prod-1 → identity(any) AND dept(prod-1)
+// B: full identity + prod-1 → identity(any-all) AND dept(any[prod-1])
 {
   const idLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
   const sel = new Set([...idLeaves, "dept-prod-1"]);
+  const constraints = buildSmartConstraints(sel, CATEGORIES);
+  assert(
+    constraints.some((c) => c.type === "any" && c.ids.includes("dept-prod-1")),
+    "prod-1 in any"
+  );
   const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
   assert(sameSet(ids, ["zhang"]), "B smart full-group AND leaf");
 }

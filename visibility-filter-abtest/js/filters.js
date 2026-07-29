@@ -56,9 +56,50 @@ export function matchSmartConstraints(person, constraints) {
 }
 
 /**
+ * Build strict-AND constraints for 匹配显示 (Design A filter mode).
+ * - Every leaf is individually required (AND), even within the same category
+ * - EXCEPT: when a group node (2-level or top-level) is fully selected,
+ *   it collapses to "belongs to that group" (any)
+ */
+export function buildStrictConstraints(
+  selectedIds,
+  categories = DEFAULT_CATEGORIES
+) {
+  const selected = asSet(selectedIds);
+  const constraints = [];
+
+  for (const cat of (categories || DEFAULT_CATEGORIES)) {
+    const catLeaves = leafIdsUnder(cat);
+    const selInCat = catLeaves.filter((id) => selected.has(id));
+    if (selInCat.length === 0) continue;
+
+    if (selInCat.length === catLeaves.length) {
+      constraints.push({ type: "any", ids: catLeaves, label: cat.label });
+      continue;
+    }
+
+    for (const child of cat.children) {
+      const leaves = leafIdsUnder(child);
+      const selMid = leaves.filter((id) => selected.has(id));
+      if (selMid.length === 0) continue;
+
+      if (child.children?.length && selMid.length === leaves.length) {
+        constraints.push({ type: "any", ids: leaves, label: child.label });
+      } else {
+        for (const id of selMid) {
+          constraints.push({ type: "has", id, label: ATTR_META[id]?.label || id });
+        }
+      }
+    }
+  }
+
+  return constraints;
+}
+
+/**
  * Design A (带模式)
- * - multi  多选显示: OR
- * - filter 匹配显示: smart AND（大类全选按大类，子类未全选按叶子 AND）
+ * - multi  多选显示: OR — 带任一标签即显示
+ * - filter 匹配显示: strict AND — 每个叶子都要有(分组全选合并为属于该组)
  */
 export function filterDesignA(
   people,
@@ -79,7 +120,7 @@ export function filterDesignA(
       .map((p) => p.id);
   }
 
-  const constraints = buildSmartConstraints(selected, categories);
+  const constraints = buildStrictConstraints(selected, categories);
   if (constraints.length === 0) return [];
   return people
     .filter((p) => matchSmartConstraints(p, constraints))
