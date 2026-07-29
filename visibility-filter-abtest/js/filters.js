@@ -1,4 +1,9 @@
-import { ATTR_META, allLeafIds, leafIdsUnder, CATEGORIES as DEFAULT_CATEGORIES } from "./data.js";
+import {
+  ATTR_META,
+  allLeafIds,
+  leafIdsUnder,
+  CATEGORIES as DEFAULT_CATEGORIES,
+} from "./data.js";
 
 function asSet(selectedIds) {
   return selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
@@ -17,10 +22,15 @@ function isAllSelected(selected, universe) {
  * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）
  * - 所有约束之间 AND
  */
-export function buildSmartConstraints(selectedIds, categories = DEFAULT_CATEGORIES) {
+export function buildSmartConstraints(
+  selectedIds,
+  categories = DEFAULT_CATEGORIES
+) {
   const selected = asSet(selectedIds);
   const constraints = [];
   const cats = categories || DEFAULT_CATEGORIES;
+
+  for (const cat of cats) {
     const catLeaves = leafIdsUnder(cat);
     const selInCat = catLeaves.filter((id) => selected.has(id));
     if (selInCat.length === 0) continue;
@@ -73,7 +83,13 @@ export function matchSmartConstraints(person, constraints) {
  * - multi  命中其一: OR
  * - filter 同时命中: smart AND（大类全选按大类，子类未全选按叶子 AND）
  */
-export function filterDesignA(people, selectedIds, mode, leafUniverse, categories) {
+export function filterDesignA(
+  people,
+  selectedIds,
+  mode,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
@@ -96,7 +112,12 @@ export function filterDesignA(people, selectedIds, mode, leafUniverse, categorie
 /**
  * Design B：始终 smart AND（类内全选按类，未全选叶子 AND，类间 AND）
  */
-export function filterDesignB(people, selectedIds, leafUniverse, categories) {
+export function filterDesignB(
+  people,
+  selectedIds,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
@@ -110,7 +131,7 @@ export function filterDesignB(people, selectedIds, leafUniverse, categories) {
     .map((p) => p.id);
 }
 
-export function initialDesignAState(categories) {
+export function initialDesignAState(categories = DEFAULT_CATEGORIES) {
   const leaves = allLeafIds(categories);
   const expanded = {};
   for (const cat of categories) {
@@ -126,7 +147,7 @@ export function initialDesignAState(categories) {
   };
 }
 
-export function initialDesignBState(categories) {
+export function initialDesignBState(categories = DEFAULT_CATEGORIES) {
   const leaves = allLeafIds(categories);
   const expanded = {};
   for (const cat of categories) {
@@ -155,10 +176,10 @@ export function parentCheckState(category, selectedIds) {
   return nodeCheckState(category, selectedIds);
 }
 
-export function clearAllLeaves(categories) {
+export function clearAllLeaves() {
   return new Set();
 }
 
-export function selectAllLeaves(categories) {
+export function selectAllLeaves(categories = DEFAULT_CATEGORIES) {
   return new Set(allLeafIds(categories));
 }

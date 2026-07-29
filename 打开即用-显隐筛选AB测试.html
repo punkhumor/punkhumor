@@ -1426,11 +1426,15 @@ function isAllSelected(selected, universe) {
  * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）
  * - 所有约束之间 AND
  */
-function buildSmartConstraints(selectedIds, categories) {
+function buildSmartConstraints(
+  selectedIds,
+  categories = DEFAULT_CATEGORIES
+) {
   const selected = asSet(selectedIds);
   const constraints = [];
+  const cats = categories || DEFAULT_CATEGORIES;
 
-  for (const cat of categories) {
+  for (const cat of cats) {
     const catLeaves = leafIdsUnder(cat);
     const selInCat = catLeaves.filter((id) => selected.has(id));
     if (selInCat.length === 0) continue;
@@ -1483,7 +1487,13 @@ function matchSmartConstraints(person, constraints) {
  * - multi  命中其一: OR
  * - filter 同时命中: smart AND（大类全选按大类，子类未全选按叶子 AND）
  */
-function filterDesignA(people, selectedIds, mode, leafUniverse, categories) {
+function filterDesignA(
+  people,
+  selectedIds,
+  mode,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
@@ -1506,7 +1516,12 @@ function filterDesignA(people, selectedIds, mode, leafUniverse, categories) {
 /**
  * Design B：始终 smart AND（类内全选按类，未全选叶子 AND，类间 AND）
  */
-function filterDesignB(people, selectedIds, leafUniverse, categories) {
+function filterDesignB(
+  people,
+  selectedIds,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
   const universe = leafUniverse || allLeafIds();
   const selected = asSet(selectedIds);
 
@@ -1520,7 +1535,7 @@ function filterDesignB(people, selectedIds, leafUniverse, categories) {
     .map((p) => p.id);
 }
 
-function initialDesignAState(categories) {
+function initialDesignAState(categories = DEFAULT_CATEGORIES) {
   const leaves = allLeafIds(categories);
   const expanded = {};
   for (const cat of categories) {
@@ -1536,7 +1551,7 @@ function initialDesignAState(categories) {
   };
 }
 
-function initialDesignBState(categories) {
+function initialDesignBState(categories = DEFAULT_CATEGORIES) {
   const leaves = allLeafIds(categories);
   const expanded = {};
   for (const cat of categories) {
@@ -1565,11 +1580,11 @@ function parentCheckState(category, selectedIds) {
   return nodeCheckState(category, selectedIds);
 }
 
-function clearAllLeaves(categories) {
+function clearAllLeaves() {
   return new Set();
 }
 
-function selectAllLeaves(categories) {
+function selectAllLeaves(categories = DEFAULT_CATEGORIES) {
   return new Set(allLeafIds(categories));
 }
 
