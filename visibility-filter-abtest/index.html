@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>物体显隐筛选 · 方案对比测试</title>
+    <meta
+      name="description"
+      content="对比两种地图人员/物体显隐筛选交互，完成任务后投票。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="brand">显隐筛选 <span>A/B 测试</span></p>
+        </div>
+        <div class="topbar-meta">
+          发给同事试用 · 投票会发到你的邮箱<br />
+          约 3–5 分钟
+        </div>
+      </header>
+
+      <nav class="steps" id="steps" aria-label="进度"></nav>
+
+      <!-- INTRO -->
+      <section class="panel panel-pad" id="view-intro">
+        <div class="hero-copy">
+          <h2>帮我选一种更顺手的筛选方式</h2>
+          <p class="lead">
+            场景：地图上有一批人员，每人同时带有「部门 / 人员身份 / 岗位 /
+            作业类型」等属性。你的目标是按条件控制他们的<strong>显示与隐藏</strong>。
+            一个物体可以同时属于多个分类。
+          </p>
+          <p class="lead">
+            你会先后试用两种交互（顺序已随机），完成 3
+            道小任务，再自由对比，最后投一票。结果会汇总给我。
+          </p>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card">
+            <h3 style="color: var(--design-a)">方案 A · 带开关</h3>
+            <p>
+              顶部开关：开启 = 同时满足（且）；关闭 =
+              命中任一就显示（或）。勾选树层级与方案 B 相同。
+            </p>
+          </div>
+          <div class="compare-card">
+            <h3 style="color: var(--design-b)">方案 B · 无开关（PDF）</h3>
+            <p>
+              大类勾选 = 开启该维；类内为或，维间为且。未绑定该维的人员不受影响。默认四大类全选。
+            </p>
+          </div>
+        </div>
+
+        <div class="tag-row">
+          <span class="tag">固定 4 个大类</span>
+          <span class="tag">多属性物体</span>
+          <span class="tag">任务校验</span>
+          <span class="tag">投票邮件回传</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" id="btn-start">
+            开始任务测试
+          </button>
+          <button class="btn btn-ghost" type="button" id="btn-skip-explore">
+            跳过任务，直接自由对比
+          </button>
+        </div>
+      </section>
+
+      <!-- TASK -->
+      <section id="view-task" class="hidden">
+        <div id="workspace-mount"></div>
+      </section>
+
+      <!-- EXPLORE -->
+      <section id="view-explore" class="hidden">
+        <div id="explore-mount"></div>
+      </section>
+
+      <!-- VOTE -->
+      <section class="panel panel-pad hidden" id="view-vote">
+        <h2 class="section-title">投一票</h2>
+        <p class="lead">
+          没有标准答案。请按你真实的使用感受选择——结果会发到设计者邮箱，并保存在本机便于汇总。
+        </p>
+
+        <form class="vote-form" id="vote-form">
+          <div class="field">
+            <label>你更想在正式产品里用哪一种？ *</label>
+            <div class="choice-group">
+              <label class="choice">
+                <input type="radio" name="prefer" value="A" required />
+                <span
+                  ><strong>方案 A</strong> — 全局且/或开关 +
+                  勾选树</span
+                >
+              </label>
+              <label class="choice">
+                <input type="radio" name="prefer" value="B" />
+                <span
+                  ><strong>方案 B</strong> — 分维度开启，无全局开关</span
+                >
+              </label>
+              <label class="choice">
+                <input type="radio" name="prefer" value="unsure" />
+                <span>不好说 / 都要改</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>哪种逻辑更好理解？ *</label>
+            <div class="choice-group">
+              <label class="choice">
+                <input type="radio" name="clearer" value="A" required />
+                <span>方案 A 更清晰</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="clearer" value="B" />
+                <span>方案 B 更清晰</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="name">你怎么称呼（可选）</label>
+            <input id="name" name="name" maxlength="40" placeholder="例如：小王" />
+          </div>
+
+          <div class="field">
+            <label for="note">一句话理由或改进建议（可选）</label>
+            <textarea
+              id="note"
+              name="note"
+              rows="3"
+              maxlength="500"
+              placeholder="例如：开关容易忘；或者大类开启不够显眼…"
+            ></textarea>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" type="submit">提交投票</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- DONE -->
+      <section class="panel panel-pad hidden" id="view-done">
+        <h2 class="section-title">谢谢参与</h2>
+        <p class="lead">
+          你的投票已记录。若是第一次用 FormSubmit
+          发到该邮箱，设计者可能需要在邮箱里点一次确认链接，之后即可自动收信。
+        </p>
+        <div class="btn-row">
+          <button class="btn btn-secondary" type="button" id="btn-restart">
+            再测一轮
+          </button>
+          <button class="btn btn-ghost" type="button" id="btn-owner-results">
+            我是设计者 · 查看本机汇总
+          </button>
+        </div>
+      </section>
+
+      <!-- RESULTS (owner) -->
+      <section class="panel panel-pad hidden" id="view-results">
+        <h2 class="section-title">本机投票汇总</h2>
+        <div id="results-summary"></div>
+        <div class="results-list" id="results-list"></div>
+        <div class="btn-row" style="margin-top: 20px">
+          <button class="btn btn-secondary" type="button" id="btn-export-votes">
+            导出 JSON
+          </button>
+          <button class="btn btn-ghost" type="button" id="btn-clear-votes">
+            清除本机记录
+          </button>
+          <button class="btn btn-ghost" type="button" id="btn-back-done">
+            返回
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
