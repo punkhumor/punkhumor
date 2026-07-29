@@ -8,7 +8,7 @@ import {
 } from "./filters.js";
 
 function assert(cond, msg) {
-  if (!cond) throw new Error(msg);
+  if (!cond) throw new Error("FAIL: " + msg);
 }
 
 function sameSet(a, b) {
@@ -31,6 +31,8 @@ const universe = allLeafIds();
   );
   assert(filterDesignA(PEOPLE, new Set(), "filter", universe, CATEGORIES).length === 0, "A none");
   assert(filterDesignB(PEOPLE, new Set(), universe, CATEGORIES).length === 0, "B none");
+  const b = initialDesignBState(CATEGORIES);
+  assert(filterDesignB(PEOPLE, b.selected, universe, CATEGORIES).length === PEOPLE.length, "B all");
 }
 
 // A multi OR
@@ -45,41 +47,64 @@ const universe = allLeafIds();
   assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi");
 }
 
-// A/B smart: full identity + 生产一组
+// B: same category OR — visitor-guest + contractor
 {
-  const identityLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
-  const sel = new Set([...identityLeaves, "dept-prod-1"]);
-  const constraints = buildSmartConstraints(sel, CATEGORIES);
-  assert(
-    constraints.some((c) => c.type === "any" && c.label === "人员身份"),
-    "full identity => category any"
+  const ids = filterDesignB(
+    PEOPLE,
+    new Set(["id-visitor-guest", "id-contractor"]),
+    universe,
+    CATEGORIES
   );
-  assert(
-    constraints.some((c) => c.type === "has" && c.id === "dept-prod-1"),
-    "prod-1 has"
-  );
-  const idsA = filterDesignA(PEOPLE, sel, "filter", universe, CATEGORIES);
-  const idsB = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
-  // zhang has identity + prod-1; he has identity but admin; wang has identity no dept-prod-1
-  assert(sameSet(idsA, ["zhang"]), "A smart");
-  assert(sameSet(idsB, ["zhang"]), "B smart");
+  assert(sameSet(ids, ["wang", "wu", "xu"]), "B same-cat OR (visitor+contractor)");
 }
 
-// full 外来人员 mid-group
+// B: same category OR — prod-1 + prod-2
 {
-  const visitor = CATEGORIES.find((c) => c.id === "identity").children.find(
-    (c) => c.id === "id-visitor"
+  const ids = filterDesignB(
+    PEOPLE,
+    new Set(["dept-prod-1", "dept-prod-2"]),
+    universe,
+    CATEGORIES
   );
-  const sel = new Set(leafIdsUnder(visitor));
-  const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
-  assert(sameSet(ids, ["wang", "he"]), "full visitor group");
+  assert(sameSet(ids, ["zhang", "zhao"]), "B dept OR");
 }
 
-// partial leaves AND within smart (two specific leaves)
+// B: cross category AND — test-qa + engineer-soft
 {
-  const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
+  const ids = filterDesignB(
+    PEOPLE,
+    new Set(["dept-test-qa", "pos-engineer-soft"]),
+    universe,
+    CATEGORIES
+  );
+  assert(sameSet(ids, ["chen", "wu"]), "B cross AND");
+}
+
+// B: full identity + prod-1 → identity(any) AND dept(prod-1)
+{
+  const idLeaves = leafIdsUnder(CATEGORIES.find((c) => c.id === "identity"));
+  const sel = new Set([...idLeaves, "dept-prod-1"]);
   const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
-  assert(sameSet(ids, ["zhang"]), "partial AND leaves");
+  assert(sameSet(ids, ["zhang"]), "B smart full-group AND leaf");
+}
+
+// B: a1 + b1 + b2 → dept(test-qa) AND pos(eng-soft OR eng-hard)
+{
+  const sel = new Set([
+    "dept-test-qa",
+    "pos-engineer-soft",
+    "pos-engineer-hard",
+  ]);
+  const ids = filterDesignB(PEOPLE, sel, universe, CATEGORIES);
+  // chen: test-qa + soft ✓; wu: test-qa + soft ✓; zhou: test-auto ✗
+  assert(sameSet(ids, ["chen", "wu"]), "B a1 AND (b1|b2)");
+}
+
+// A 匹配显示: same smart rules as B
+{
+  const sel = new Set(["id-visitor-guest", "id-contractor"]);
+  const ids = filterDesignA(PEOPLE, sel, "filter", universe, CATEGORIES);
+  assert(sameSet(ids, ["wang", "wu", "xu"]), "A filter same-cat OR");
 }
 
 console.log("All filter tests passed.");

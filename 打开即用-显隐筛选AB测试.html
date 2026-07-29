@@ -1575,31 +1575,8 @@ function buildSmartConstraints(
       continue;
     }
 
-    for (const child of cat.children) {
-      const leaves = leafIdsUnder(child);
-      const selMid = leaves.filter((id) => selected.has(id));
-      if (selMid.length === 0) continue;
-
-      if (child.children?.length) {
-        if (selMid.length === leaves.length) {
-          constraints.push({ type: "any", ids: leaves, label: child.label });
-        } else {
-          for (const id of selMid) {
-            constraints.push({
-              type: "has",
-              id,
-              label: ATTR_META[id]?.label || id,
-            });
-          }
-        }
-      } else {
-        constraints.push({
-          type: "has",
-          id: child.id,
-          label: child.label,
-        });
-      }
-    }
+    // Within a category: always OR — collect all selected leaves into one "any" group
+    constraints.push({ type: "any", ids: selInCat, label: cat.label + "(部分)" });
   }
 
   return constraints;
