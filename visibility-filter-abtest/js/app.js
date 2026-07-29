@@ -13,12 +13,17 @@ import {
   initialDesignAState,
   initialDesignBState,
   nodeCheckState,
-  parentCheckStateB,
 } from "./filters.js";
 
 const OWNER_EMAIL = "punkhumorlyde@163.com";
-const STORAGE_KEY = "visibility-filter-abtest-votes-v3";
+const STORAGE_KEY = "visibility-filter-abtest-votes-v4";
 const LEAF_UNIVERSE = allLeafIds();
+
+const GOALS = [
+  { title: "只显示张三", tip: "尽量让地图上只剩「张三」一人亮着。" },
+  { title: "显示所有质检员", tip: "让岗位为「质检员」的人全部显示。" },
+  { title: "显示供应商来访", tip: "外来人员 → 供应商来访；看看谁还亮着。" },
+];
 
 function freshSession() {
   const flip = Math.random() < 0.5;
@@ -40,27 +45,12 @@ const state = {
   compare: { A: null, B: null },
 };
 
-function cloneToggle(src) {
+function cloneEngine(src) {
   return {
     mode: src.mode,
     selected: new Set(src.selected),
     expanded: { ...src.expanded },
   };
-}
-
-function cloneFacet(src) {
-  const out = {
-    _midExpanded: { ...(src._midExpanded || {}) },
-  };
-  for (const [id, s] of Object.entries(src)) {
-    if (id === "_midExpanded") continue;
-    out[id] = {
-      enabled: s.enabled,
-      selected: new Set(s.selected),
-      expanded: s.expanded,
-    };
-  }
-  return out;
 }
 
 function engineKeyForLabel(label) {
@@ -80,7 +70,7 @@ function visibleFor(label, engineOverride) {
       filterDesignA(PEOPLE, eng.selected, eng.mode, LEAF_UNIVERSE)
     );
   }
-  return new Set(filterDesignB(PEOPLE, eng));
+  return new Set(filterDesignB(PEOPLE, eng.selected, LEAF_UNIVERSE));
 }
 
 function showToast(message) {
@@ -128,8 +118,7 @@ function renderModeToggle(eng, scope) {
   </div>`;
 }
 
-function renderTreeToggle(eng, scope) {
-  const accent = "a";
+function renderTree(eng, scope, accent) {
   return CATEGORIES.map((cat) => {
     const catExpanded = !!eng.expanded[cat.id];
     const pState = nodeCheckState(cat, eng.selected);
@@ -154,7 +143,7 @@ function renderTreeToggle(eng, scope) {
               .map((g) => {
                 const on = eng.selected.has(g.id);
                 return `<div class="tree-node">
-                  <div class="tree-row child lv3" data-scope="${scope}" data-act="t-leaf" data-id="${g.id}">
+                  <div class="tree-row child lv3" data-scope="${scope}" data-act="sel-leaf" data-id="${g.id}">
                     <span></span>
                     <span class="checkbox ${on ? `on ${accent}` : ""}">${checkIcon()}</span>
                     <span class="tree-label">${g.label}</span>
@@ -166,15 +155,15 @@ function renderTreeToggle(eng, scope) {
 
         return `<div class="tree-node">
           <div class="tree-row child lv2" data-scope="${scope}" data-act="${
-            hasKids ? "t-mid" : "t-leaf"
+            hasKids ? "sel-group" : "sel-leaf"
           }" data-id="${child.id}">
             ${
               hasKids
-                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="t-expand" data-id="${child.id}">${twistIcon()}</button>`
+                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="expand" data-id="${child.id}">${twistIcon()}</button>`
                 : `<span></span>`
             }
             <span class="checkbox ${cClass}" data-scope="${scope}" data-act="${
-              hasKids ? "t-mid" : "t-leaf"
+              hasKids ? "sel-group" : "sel-leaf"
             }" data-id="${child.id}">${checkIcon(cState === "partial")}</span>
             <span class="tree-label">${child.label}</span>
           </div>
@@ -188,91 +177,9 @@ function renderTreeToggle(eng, scope) {
       .join("");
 
     return `<div class="tree-node">
-      <div class="tree-row parent" style="--cat-color:${color}">
-        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="t-expand" data-id="${cat.id}">${twistIcon()}</button>
-        <button type="button" class="checkbox ${checkClass}" data-scope="${scope}" data-act="t-parent" data-id="${cat.id}">${checkIcon(
-          pState === "partial"
-        )}</button>
-        <span class="tree-label"><span class="cat-dot" style="background:${color}"></span>${cat.label}</span>
-      </div>
-      <div class="tree-children ${catExpanded ? "" : "hidden"}">${level2}</div>
-    </div>`;
-  }).join("");
-}
-
-function renderTreeFacet(eng, scope) {
-  const accent = "b";
-  return CATEGORIES.map((cat) => {
-    const catState = eng[cat.id];
-    const catExpanded = !!catState.expanded;
-    const pState = parentCheckStateB(cat, catState);
-    const enabled = catState.enabled;
-    const parentClass =
-      pState === "off"
-        ? ""
-        : pState === "all"
-          ? `on ${accent}`
-          : pState === "partial"
-            ? `partial ${accent}`
-            : `on ${accent}`;
-    const color = CATEGORY_COLORS[cat.id];
-
-    const level2 = cat.children
-      .map((child) => {
-        const hasKids = !!child.children?.length;
-        const midExpanded = !!eng._midExpanded?.[child.id];
-        const cState = nodeCheckState(child, catState.selected);
-        const cClass =
-          cState === "all"
-            ? `on ${accent}`
-            : cState === "partial"
-              ? `partial ${accent}`
-              : "";
-
-        const level3 = hasKids
-          ? child.children
-              .map((g) => {
-                const on = catState.selected.has(g.id);
-                return `<div class="tree-node">
-                  <div class="tree-row child lv3" data-scope="${scope}" data-act="f-leaf" data-cat="${cat.id}" data-id="${g.id}">
-                    <span></span>
-                    <span class="checkbox ${on ? `on ${accent}` : ""}">${checkIcon()}</span>
-                    <span class="tree-label" style="${enabled ? "" : "opacity:.5"}">${g.label}</span>
-                  </div>
-                </div>`;
-              })
-              .join("")
-          : "";
-
-        return `<div class="tree-node">
-          <div class="tree-row child lv2" data-scope="${scope}" data-act="${
-            hasKids ? "f-mid" : "f-leaf"
-          }" data-cat="${cat.id}" data-id="${child.id}">
-            ${
-              hasKids
-                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="f-mid-expand" data-id="${child.id}">${twistIcon()}</button>`
-                : `<span></span>`
-            }
-            <span class="checkbox ${cClass}" data-scope="${scope}" data-act="${
-              hasKids ? "f-mid" : "f-leaf"
-            }" data-cat="${cat.id}" data-id="${child.id}">${checkIcon(
-              cState === "partial"
-            )}</span>
-            <span class="tree-label" style="${enabled ? "" : "opacity:.5"}">${child.label}</span>
-          </div>
-          ${
-            hasKids
-              ? `<div class="tree-children ${midExpanded ? "" : "hidden"}">${level3}</div>`
-              : ""
-          }
-        </div>`;
-      })
-      .join("");
-
-    return `<div class="tree-node">
-      <div class="tree-row parent ${enabled ? "b-active" : ""}" style="--cat-color:${color}">
-        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="f-expand" data-id="${cat.id}">${twistIcon()}</button>
-        <button type="button" class="checkbox ${parentClass}" data-scope="${scope}" data-act="f-parent" data-id="${cat.id}">${checkIcon(
+      <div class="tree-row parent" style="--cat-color:${color}" data-scope="${scope}" data-act="sel-group" data-id="${cat.id}">
+        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="expand" data-id="${cat.id}">${twistIcon()}</button>
+        <button type="button" class="checkbox ${checkClass}" data-scope="${scope}" data-act="sel-group" data-id="${cat.id}">${checkIcon(
           pState === "partial"
         )}</button>
         <span class="tree-label"><span class="cat-dot" style="background:${color}"></span>${cat.label}</span>
@@ -314,6 +221,7 @@ function renderPanel(label, opts = {}) {
   const visible = visibleFor(label, eng);
   const isToggle = key === "toggle";
   const badgeClass = label === "A" ? "a" : "b";
+  const accent = isToggle ? "a" : "b";
 
   return `<div class="workspace panel" data-panel="${label}">
     <aside class="sidebar">
@@ -323,16 +231,14 @@ function renderPanel(label, opts = {}) {
       </div>
       <div class="sidebar-body">
         ${isToggle ? renderModeToggle(eng, scope) : ""}
-        <div class="tree">
-          ${isToggle ? renderTreeToggle(eng, scope) : renderTreeFacet(eng, scope)}
-        </div>
+        <div class="tree">${renderTree(eng, scope, accent)}</div>
       </div>
     </aside>
     <section class="scene-wrap">
       <div class="task-bar">
         <div>
           <h4>方案 ${label}</h4>
-          <p>勾选标签控制显隐。圆点颜色对应人员所属大类。</p>
+          <p>勾选标签控制显隐。圆点颜色对应所属大类。</p>
         </div>
       </div>
       <div class="scene">
@@ -354,13 +260,15 @@ function renderPanel(label, opts = {}) {
 function ensureCompareEngines() {
   if (!state.compare.A) {
     const keyA = engineKeyForLabel("A");
-    state.compare.A =
-      keyA === "toggle" ? cloneToggle(state.toggle) : cloneFacet(state.facet);
+    state.compare.A = cloneEngine(
+      keyA === "toggle" ? state.toggle : state.facet
+    );
   }
   if (!state.compare.B) {
     const keyB = engineKeyForLabel("B");
-    state.compare.B =
-      keyB === "toggle" ? cloneToggle(state.toggle) : cloneFacet(state.facet);
+    state.compare.B = cloneEngine(
+      keyB === "toggle" ? state.toggle : state.facet
+    );
   }
 }
 
@@ -389,9 +297,8 @@ function findNode(id) {
     if (cat.id === id) return cat;
     for (const child of cat.children) {
       if (child.id === id) return child;
-      if (child.children?.some((g) => g.id === id)) {
-        return child.children.find((g) => g.id === id);
-      }
+      const g = child.children?.find((x) => x.id === id);
+      if (g) return g;
     }
   }
   return null;
@@ -402,87 +309,35 @@ function handleAct(act, scope, dataset, extra = {}) {
   if (!ctx) return false;
   const { key, eng } = ctx;
 
-  if (key === "toggle") {
-    if (act === "t-expand") {
-      eng.expanded[dataset.id] = !eng.expanded[dataset.id];
-      return true;
-    }
-    if (act === "t-parent" || act === "t-mid") {
-      const node = findNode(dataset.id);
-      if (!node) return false;
-      toggleLeaves(eng.selected, leafIdsUnder(node));
-      return true;
-    }
-    if (act === "t-leaf") {
-      const id = dataset.id;
-      if (eng.selected.has(id)) eng.selected.delete(id);
-      else eng.selected.add(id);
-      return true;
-    }
-    if (act === "t-mode") {
-      eng.mode = extra.checked ? "filter" : "multi";
-      return true;
-    }
-    if (act === "reset") {
-      if (ctx.compare) {
-        state.compare[ctx.label] = initialDesignAState(CATEGORIES);
-      } else resetEngine("toggle");
-      return true;
-    }
+  if (act === "expand") {
+    eng.expanded[dataset.id] = !eng.expanded[dataset.id];
+    return true;
   }
-
-  if (key === "facet") {
-    if (act === "f-expand") {
-      eng[dataset.id].expanded = !eng[dataset.id].expanded;
-      return true;
-    }
-    if (act === "f-mid-expand") {
-      eng._midExpanded[dataset.id] = !eng._midExpanded[dataset.id];
-      return true;
-    }
-    if (act === "f-parent") {
-      const id = dataset.id;
-      const catState = eng[id];
-      const cat = CATEGORIES.find((c) => c.id === id);
-      const leaves = leafIdsUnder(cat);
-      if (!catState.enabled) {
-        catState.enabled = true;
-        catState.expanded = true;
-        catState.selected = new Set(leaves);
-      } else {
-        const allOn = leaves.every((x) => catState.selected.has(x));
-        if (allOn || catState.selected.size === 0) {
-          catState.enabled = false;
-          catState.selected.clear();
-        } else {
-          leaves.forEach((x) => catState.selected.add(x));
-        }
-      }
-      return true;
-    }
-    if (act === "f-mid" || act === "f-leaf") {
-      const catId = dataset.cat;
-      const catState = eng[catId];
-      if (!catState.enabled) {
-        catState.enabled = true;
-        catState.expanded = true;
-      }
-      const node = findNode(dataset.id);
-      const leaves = leafIdsUnder(node);
-      if (act === "f-leaf" && leaves.length === 1 && leaves[0] === dataset.id) {
-        if (catState.selected.has(dataset.id)) catState.selected.delete(dataset.id);
-        else catState.selected.add(dataset.id);
-      } else {
-        toggleLeaves(catState.selected, leaves);
-      }
-      if (catState.selected.size === 0) catState.enabled = false;
-      return true;
-    }
-    if (act === "reset") {
-      if (ctx.compare) state.compare[ctx.label] = initialDesignBState(CATEGORIES);
-      else resetEngine("facet");
-      return true;
-    }
+  if (act === "sel-group") {
+    const node = findNode(dataset.id);
+    if (!node) return false;
+    toggleLeaves(eng.selected, leafIdsUnder(node));
+    return true;
+  }
+  if (act === "sel-leaf") {
+    const id = dataset.id;
+    if (eng.selected.has(id)) eng.selected.delete(id);
+    else eng.selected.add(id);
+    return true;
+  }
+  if (act === "t-mode") {
+    if (key !== "toggle") return false;
+    eng.mode = extra.checked ? "filter" : "multi";
+    return true;
+  }
+  if (act === "reset") {
+    if (ctx.compare) {
+      state.compare[ctx.label] =
+        key === "toggle"
+          ? initialDesignAState(CATEGORIES)
+          : initialDesignBState(CATEGORIES);
+    } else resetEngine(key);
+    return true;
   }
   return false;
 }
@@ -538,22 +393,31 @@ function renderNav() {
 }
 
 function renderIntro() {
+  const goals = GOALS.map(
+    (g, i) => `<div class="goal-card">
+      <div class="goal-idx">${i + 1}</div>
+      <div>
+        <strong>${g.title}</strong>
+        <p>${g.tip}</p>
+      </div>
+    </div>`
+  ).join("");
+
   return `<section class="panel panel-pad">
     <div class="hero-copy">
       <h2>显隐筛选交互对比</h2>
       <p class="lead">
-        场景：一张 2D 示意地图上有若干人员。每人可带有「人员身份 / 部门 / 岗位 / 作业类型」等标签
-        （同一人可属于多个大类；部分标签下还有更细的三级项）。你的操作目标是：按条件控制谁显示、谁隐藏。
-      </p>
-      <p class="lead">
-        这里有两套交互方案（名称已随机对应）。请分别试用，也可并排对比，最后投一票。
-        没有标准答案，按真实使用感受选择即可。约需几分钟。
+        地图上有若干人员，每人可带多个分类标签（含部分三级标签）。用左侧勾选控制谁显示、谁隐藏。
+        两套方案名称已随机对应，请分别试用或并排对比，最后投一票。
       </p>
     </div>
+
+    <h3 class="section-title" style="font-size:1.05rem;margin-top:8px">试试这些小目标</h3>
+    <div class="goal-list">${goals}</div>
+
     <div class="tag-row">
       <span class="tag">默认全选 · 全员显示</span>
-      <span class="tag">大类颜色区分</span>
-      <span class="tag">含三级标签</span>
+      <span class="tag">可随时跳转</span>
       <span class="tag">每次打开随机先后</span>
     </div>
     <div class="btn-row">
@@ -743,7 +607,6 @@ function wire() {
     if (act === "nav" || act === "t-mode") return;
     const scope = el.dataset.scope;
     if (!scope) return;
-    // Prefer act/id from the element that owns the action (avoid twist stealing parent row)
     if (handleAct(act, scope, el.dataset)) {
       e.preventDefault();
       paint();

@@ -346,6 +346,41 @@ a {
   display: inline-block;
 }
 
+.goal-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 20px;
+}
+
+.goal-card {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.goal-card p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.goal-idx {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .person .dot {
   border: 2px solid rgba(255, 255, 255, 0.35);
 }

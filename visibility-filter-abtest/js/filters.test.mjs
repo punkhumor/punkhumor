@@ -1,9 +1,9 @@
-import { PEOPLE, CATEGORIES, allLeafIds, leafIdsUnder } from "./data.js";
+import { PEOPLE, CATEGORIES, allLeafIds } from "./data.js";
 import {
   filterDesignA,
   filterDesignB,
-  initialDesignBState,
   initialDesignAState,
+  initialDesignBState,
 } from "./filters.js";
 
 function assert(cond, msg) {
@@ -20,66 +20,72 @@ function sameSet(a, b) {
 
 const universe = allLeafIds();
 
-// Default all selected → everyone
+// A/B 全选 → 全员
 {
-  const st = initialDesignAState(CATEGORIES);
-  const ids = filterDesignA(PEOPLE, st.selected, "filter", universe);
-  assert(sameSet(ids, PEOPLE.map((p) => p.id)), "A all-on shows all");
+  const a = initialDesignAState(CATEGORIES);
+  const b = initialDesignBState(CATEGORIES);
+  assert(
+    sameSet(
+      filterDesignA(PEOPLE, a.selected, "multi", universe),
+      PEOPLE.map((p) => p.id)
+    ),
+    "A all"
+  );
+  assert(
+    sameSet(filterDesignB(PEOPLE, b.selected, universe), PEOPLE.map((p) => p.id)),
+    "B all"
+  );
 }
 
-// None selected → nobody
+// 全不选 → 无人
+assert(filterDesignA(PEOPLE, new Set(), "multi", universe).length === 0, "A none");
+assert(filterDesignA(PEOPLE, new Set(), "filter", universe).length === 0, "A none filter");
+assert(filterDesignB(PEOPLE, new Set(), universe).length === 0, "B none");
+
+// A 多选 = OR
 {
-  const ids = filterDesignA(PEOPLE, new Set(), "filter", universe);
-  assert(ids.length === 0, "A none hides all");
-  assert(filterDesignA(PEOPLE, new Set(), "multi", universe).length === 0, "A multi none");
+  const sel = new Set(["dept-prod-1", "pos-qa"]);
+  const ids = filterDesignA(PEOPLE, sel, "multi", universe);
+  assert(sameSet(ids, ["zhang", "jiu", "zheng", "he"]), "A multi OR");
 }
 
-// Within category OR (筛选): prod-1 OR prod-2
-{
-  const sel = new Set(["dept-prod-1", "dept-prod-2"]);
-  const ids = filterDesignA(PEOPLE, sel, "filter", universe);
-  assert(sameSet(ids, ["zhang", "zhao"]), "A filter within-cat OR");
-}
-
-// Across categories AND: prod-1 AND engineer-soft
+// A 筛选 = 严格 AND（每个标签都要有）
 {
   const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
   const ids = filterDesignA(PEOPLE, sel, "filter", universe);
-  assert(sameSet(ids, ["zhang"]), "A filter across AND");
+  assert(sameSet(ids, ["zhang"]), "A filter AND");
 }
-
-// a1 + b1 + b2 → a1 AND (b1 OR b2)
 {
+  // a1+b1+b2 在严格 AND 下几乎无人（需同时有三个标签）
   const sel = new Set([
     "dept-test-qa",
     "pos-engineer-soft",
     "pos-engineer-hard",
   ]);
   const ids = filterDesignA(PEOPLE, sel, "filter", universe);
-  // chen: test-qa + soft; wu: test-qa + soft; zhou: test-auto — no
-  assert(sameSet(ids, ["chen", "wu"]), "A filter a1 AND (b1|b2)");
+  assert(ids.length === 0, "A filter AND three tags");
 }
 
-// 多选显示: flat OR
+// B：类内 OR、类间 AND
 {
-  const sel = new Set(["dept-prod-1", "pos-qa"]);
-  const ids = filterDesignA(PEOPLE, sel, "multi", universe);
-  assert(
-    sameSet(ids, ["zhang", "jiu", "zheng", "he"]),
-    "A multi OR"
-  );
+  const sel = new Set(["dept-prod-1", "dept-prod-2"]);
+  const ids = filterDesignB(PEOPLE, sel, universe);
+  assert(sameSet(ids, ["zhang", "zhao"]), "B within OR");
 }
-
-// Design B still: unbound pass when filtering dept
 {
-  const state = initialDesignBState(CATEGORIES);
-  state.department.selected = new Set(["dept-prod-1", "dept-prod-2"]);
-  const ids = filterDesignB(PEOPLE, state);
-  assert(ids.includes("zhang") && ids.includes("sun") && ids.includes("wang"), "B unbound");
-  assert(!ids.includes("li"), "B hides admin");
+  const sel = new Set(["dept-prod-1", "pos-engineer-soft"]);
+  const ids = filterDesignB(PEOPLE, sel, universe);
+  assert(sameSet(ids, ["zhang"]), "B across AND");
 }
-
-// leaf helpers
-assert(leafIdsUnder(CATEGORIES[1]).includes("dept-prod-1"), "leaves under dept");
+{
+  // a1 + b1 + b2 → a1 AND (b1 OR b2)
+  const sel = new Set([
+    "dept-test-qa",
+    "pos-engineer-soft",
+    "pos-engineer-hard",
+  ]);
+  const ids = filterDesignB(PEOPLE, sel, universe);
+  assert(sameSet(ids, ["chen", "wu"]), "B a1 AND (b1|b2)");
+}
 
 console.log("All filter tests passed.");
