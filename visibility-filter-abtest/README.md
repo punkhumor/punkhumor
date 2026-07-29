@@ -8,12 +8,11 @@
 2. 双击用 Chrome / Edge / Safari 打开
 3. 或把该文件发给同事（微信/邮件/网盘），对方同样双击即可
 
-在线链接（推送后可用，任选其一）：
+在线打开（点开即用）：
 
-- https://raw.githack.com/punkhumor/punkhumor/cursor/visibility-filter-abtest-d882/打开即用-显隐筛选AB测试.html
-- https://cdn.jsdelivr.net/gh/punkhumor/punkhumor@cursor/visibility-filter-abtest-d882/打开即用-显隐筛选AB测试.html
+- https://htmlpreview.github.io/?https://raw.githubusercontent.com/punkhumor/punkhumor/cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
 
-> 地图是 **2D 示意**：亮点=显示，变暗=隐藏，够表达筛选意思。
+或下载 **`打开即用-显隐筛选AB测试.html`** 双击打开 / 发给同事。
 
 ## 两种方案
 
