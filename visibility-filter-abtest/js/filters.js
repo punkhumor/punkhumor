@@ -16,7 +16,7 @@ function isAllSelected(selected, universe) {
 }
 
 /**
- * Smart AND constraints for 同时命中 / Design B:
+ * Smart AND constraints for 匹配显示 / Design B:
  * - 某大类叶子全选 → 约束为「属于该大类」(有该类任一叶子即可)
  * - 某二级分组全选 → 约束为「属于该分组」
  * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）

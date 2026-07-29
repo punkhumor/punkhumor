@@ -331,11 +331,16 @@ a {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  margin: 0 8px 8px;
+  margin: 0 8px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.18);
   overflow: hidden;
+}
+
+.sidebar-body .tree {
+  flex: 1;
+  min-height: 0;
 }
 
 .mode-switch-bar {
