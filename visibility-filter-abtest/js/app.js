@@ -49,6 +49,8 @@ const state = {
   toggle: initialDesignAState(CATEGORIES),
   facet: initialDesignBState(CATEGORIES),
   compare: { A: null, B: null },
+  filterSheet: false,
+  infoSheet: false,
 };
 
 function cloneEngine(src) {
@@ -267,9 +269,40 @@ function renderPanel(label, opts = {}) {
   const badgeClass = label === "A" ? "a" : "b";
   const accent = isToggle ? "a" : "b";
   const compact = !!opts.compact;
+  const sheetOpen = state.filterSheet;
+  const infoOpen = state.infoSheet;
 
-  return `<div class="workspace panel ${compact ? "compact" : ""}" data-panel="${label}">
-    <aside class="sidebar">
+  return `<div class="workspace panel ${compact ? "compact" : ""} ${
+    sheetOpen ? "sheet-open" : ""
+  } ${infoOpen ? "info-open" : ""}" data-panel="${label}">
+    <section class="scene-wrap">
+      <div class="mobile-topbar">
+        <div class="design-badge ${badgeClass}">方案 ${label}</div>
+        ${isToggle ? renderModeToggle(eng, scope) : ""}
+        <div class="mobile-top-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-act="toggle-info">对照</button>
+          <button type="button" class="btn btn-primary btn-sm" data-act="toggle-sheet">筛选</button>
+        </div>
+      </div>
+      <div class="scene">
+        ${renderPeople(visible)}
+        <div class="scene-legend">
+          <div>亮=显示 · 暗=隐藏 · ${visible.size}/${PEOPLE.length}</div>
+          <div class="legend-row">${legendHtml()}</div>
+        </div>
+      </div>
+      <div class="mobile-filter-bar">
+        <button type="button" class="mobile-filter-btn" data-act="toggle-sheet">
+          <span>筛选面板</span>
+          <strong>${visible.size}/${PEOPLE.length}</strong>
+        </button>
+      </div>
+    </section>
+
+    <div class="sheet-backdrop" data-act="close-sheets"></div>
+
+    <aside class="sidebar filter-sheet">
+      <div class="sheet-handle" data-act="toggle-sheet"><i></i></div>
       <div class="sidebar-head">
         <div class="sidebar-head-row">
           <div class="design-badge ${badgeClass}">方案 ${label}</div>
@@ -283,23 +316,20 @@ function renderPanel(label, opts = {}) {
       <div class="sidebar-foot">
         <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-on">重置全选</button>
         <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-off">重置全关</button>
+        <button class="btn btn-primary btn-sm mobile-only" type="button" data-act="close-sheets">完成</button>
       </div>
     </aside>
-    <section class="scene-wrap">
-      <div class="scene">
-        ${renderPeople(visible)}
-        <div class="scene-legend">
-          <div>亮=显示 · 暗=隐藏 · ${visible.size}/${PEOPLE.length}</div>
-          <div class="legend-row">${legendHtml()}</div>
-        </div>
-      </div>
-    </section>
+
     ${
       compact
         ? ""
-        : `<aside class="side-rail">
+        : `<aside class="side-rail info-sheet">
+      <div class="sheet-handle" data-act="toggle-info"><i></i></div>
       ${renderGoalsSide()}
       ${renderRoster(visible)}
+      <div class="sidebar-foot mobile-only">
+        <button class="btn btn-primary btn-sm" type="button" data-act="close-sheets">关闭</button>
+      </div>
     </aside>`
     }
   </div>`;
@@ -535,6 +565,11 @@ function renderResults() {
 }
 
 function paint() {
+  // reset sheets when leaving operation views
+  if (state.view !== "A" && state.view !== "B" && state.view !== "compare") {
+    state.filterSheet = false;
+    state.infoSheet = false;
+  }
   renderNav();
   const main = document.getElementById("main");
   if (state.view === "intro") main.innerHTML = renderIntro();
@@ -612,6 +647,27 @@ function wire() {
     const nav = e.target.closest("[data-act='nav']");
     if (nav) {
       state.view = nav.dataset.view;
+      state.filterSheet = false;
+      state.infoSheet = false;
+      paint();
+      return;
+    }
+
+    if (e.target.closest("[data-act='toggle-sheet']")) {
+      state.filterSheet = !state.filterSheet;
+      if (state.filterSheet) state.infoSheet = false;
+      paint();
+      return;
+    }
+    if (e.target.closest("[data-act='toggle-info']")) {
+      state.infoSheet = !state.infoSheet;
+      if (state.infoSheet) state.filterSheet = false;
+      paint();
+      return;
+    }
+    if (e.target.closest("[data-act='close-sheets']")) {
+      state.filterSheet = false;
+      state.infoSheet = false;
       paint();
       return;
     }
