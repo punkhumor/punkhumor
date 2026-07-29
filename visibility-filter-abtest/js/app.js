@@ -117,16 +117,16 @@ function toggleLeaves(selected, leafIds) {
   setLeaves(selected, leafIds, !allOn);
 }
 
-/** Switch row: looks like it drives how list checks are interpreted */
+/** Mode switch sits in sidebar header — short labels, clear on/off */
 function renderModeToggle(eng, scope) {
   const filterOn = eng.mode === "filter";
-  return `<div class="mode-switch-bar">
-    <button type="button" class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">多选显示</button>
-    <label class="switch mode-switch" title="切换列表匹配方式">
+  return `<div class="mode-switch-bar compact">
+    <span class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi" role="button" tabindex="0">多选</span>
+    <label class="switch mode-switch" title="多选=任一即可 · 匹配=同时满足">
       <input type="checkbox" data-scope="${scope}" data-act="t-mode-check" ${filterOn ? "checked" : ""} />
       <span class="switch-track"></span>
     </label>
-    <button type="button" class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">匹配显示</button>
+    <span class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter" role="button" tabindex="0">匹配</span>
   </div>`;
 }
 
@@ -271,11 +271,13 @@ function renderPanel(label, opts = {}) {
   return `<div class="workspace panel ${compact ? "compact" : ""}" data-panel="${label}">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <div class="design-badge ${badgeClass}">方案 ${label}</div>
+        <div class="sidebar-head-row">
+          <div class="design-badge ${badgeClass}">方案 ${label}</div>
+          ${isToggle ? renderModeToggle(eng, scope) : ""}
+        </div>
         <h3>筛选面板</h3>
       </div>
       <div class="sidebar-body">
-        ${isToggle ? renderModeToggle(eng, scope) : ""}
         <div class="tree">${renderTree(eng, scope, accent)}</div>
       </div>
       <div class="sidebar-foot">

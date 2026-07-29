@@ -353,12 +353,28 @@ a {
 
 .mode-switch-bar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto auto auto;
   align-items: center;
+  gap: 6px;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+.mode-switch-bar.compact .mode-side {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 4px;
 }
 
 .mode-side {
@@ -379,8 +395,8 @@ a {
 }
 
 .mode-switch.switch {
-  width: 48px;
-  height: 28px;
+  width: 42px;
+  height: 24px;
 }
 
 .mode-switch .switch-track {
@@ -393,15 +409,15 @@ a {
 }
 
 .mode-switch .switch-track::after {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   top: 3px;
   left: 3px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .mode-switch input:checked + .switch-track::after {
-  transform: translateX(20px);
+  transform: translateX(18px);
 }
 
 .sidebar-foot {
@@ -1839,16 +1855,16 @@ function toggleLeaves(selected, leafIds) {
   setLeaves(selected, leafIds, !allOn);
 }
 
-/** Switch row: looks like it drives how list checks are interpreted */
+/** Mode switch sits in sidebar header — short labels, clear on/off */
 function renderModeToggle(eng, scope) {
   const filterOn = eng.mode === "filter";
-  return `<div class="mode-switch-bar">
-    <button type="button" class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi">多选显示</button>
-    <label class="switch mode-switch" title="切换列表匹配方式">
+  return `<div class="mode-switch-bar compact">
+    <span class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi" role="button" tabindex="0">多选</span>
+    <label class="switch mode-switch" title="多选=任一即可 · 匹配=同时满足">
       <input type="checkbox" data-scope="${scope}" data-act="t-mode-check" ${filterOn ? "checked" : ""} />
       <span class="switch-track"></span>
     </label>
-    <button type="button" class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter">匹配显示</button>
+    <span class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter" role="button" tabindex="0">匹配</span>
   </div>`;
 }
 
@@ -1993,11 +2009,13 @@ function renderPanel(label, opts = {}) {
   return `<div class="workspace panel ${compact ? "compact" : ""}" data-panel="${label}">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <div class="design-badge ${badgeClass}">方案 ${label}</div>
+        <div class="sidebar-head-row">
+          <div class="design-badge ${badgeClass}">方案 ${label}</div>
+          ${isToggle ? renderModeToggle(eng, scope) : ""}
+        </div>
         <h3>筛选面板</h3>
       </div>
       <div class="sidebar-body">
-        ${isToggle ? renderModeToggle(eng, scope) : ""}
         <div class="tree">${renderTree(eng, scope, accent)}</div>
       </div>
       <div class="sidebar-foot">

@@ -91,10 +91,10 @@ const universe = allLeafIds();
   assert(sameSet(ids, ["chen", "wu"]), "B a1 AND (b1|b2)");
 }
 
-// A filter same-cat OR visitor-guest + contractor → should NOT be OR
+// A filter: visitor-guest + contractor → strict AND → nobody has both
 {
   const ids = filterDesignA(PEOPLE, new Set(["id-visitor-guest", "id-contractor"]), "filter", universe, CATEGORIES);
-  assert(ids.length === 0, "A filter visitor+contractor = strict AND → nobody");
+  assert(ids.length === 0, "A filter strict AND visitor+contractor");
 }
 
 console.log("All filter tests passed.");
