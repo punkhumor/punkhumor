@@ -1,35 +1,33 @@
-#!/usr/bin/env node
-/** Smoke-test filter engines + click handler semantics without a browser. */
-import { PEOPLE, CATEGORIES } from "./data.js";
+import { PEOPLE, CATEGORIES, allLeafIds } from "./data.js";
 import {
   filterDesignA,
   filterDesignB,
+  initialDesignAState,
   initialDesignBState,
-  parentCheckState,
 } from "./filters.js";
 
 function assert(c, m) {
   if (!c) throw new Error(m);
 }
 
-const selected = new Set();
-assert(parentCheckState(CATEGORIES[1], selected) === "none", "none");
-CATEGORIES[1].children.forEach((c) => selected.add(c.id));
-assert(parentCheckState(CATEGORIES[1], selected) === "all", "all");
-selected.delete(CATEGORIES[1].children[0].id);
-assert(parentCheckState(CATEGORIES[1], selected) === "partial", "partial");
-
-// toggle leaf add/remove
-const s = new Set();
-s.add("dept-prod");
-assert(filterDesignA(PEOPLE, s, "or").includes("zhang"), "or shows zhang");
-s.add("pos-engineer");
-assert(filterDesignA(PEOPLE, s, "and").includes("zhang"), "and zhang");
-assert(!filterDesignA(PEOPLE, s, "and").includes("zhao"), "and hides zhao");
-
-const facet = initialDesignBState(CATEGORIES);
-facet.department.selected = new Set(["dept-prod"]);
-const ids = filterDesignB(PEOPLE, facet);
-assert(ids.includes("zhang") && ids.includes("sun"), "facet unbound");
-
+const u = allLeafIds();
+const a = initialDesignAState(CATEGORIES);
+const b = initialDesignBState(CATEGORIES);
+assert(filterDesignA(PEOPLE, a.selected, "multi", u).length === PEOPLE.length, "A");
+assert(filterDesignB(PEOPLE, b.selected, u).length === PEOPLE.length, "B");
+assert(filterDesignA(PEOPLE, new Set(["dept-prod-1"]), "multi", u).includes("zhang"), "or");
+assert(
+  filterDesignA(PEOPLE, new Set(["dept-prod-1", "pos-engineer-soft"]), "filter", u).includes(
+    "zhang"
+  ),
+  "and"
+);
+assert(
+  filterDesignB(
+    PEOPLE,
+    new Set(["dept-test-qa", "pos-engineer-soft", "pos-engineer-hard"]),
+    u
+  ).includes("chen"),
+  "B facet"
+);
 console.log("smoke ok");
