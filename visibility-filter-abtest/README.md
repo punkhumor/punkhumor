@@ -5,8 +5,8 @@
 ## 打开
 
 - 文件：`打开即用-显隐筛选AB测试.html`（仓库根目录）
-- **在线（推荐）**：https://raw.githack.com/punkhumor/punkhumor/cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
-- 备用：https://cdn.jsdelivr.net/gh/punkhumor/punkhumor@cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
+- **在线（推荐）**：https://cdn.jsdelivr.net/gh/punkhumor/punkhumor@cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
+- 备用：https://raw.githack.com/punkhumor/punkhumor/913f1ea/visibility-filter-abtest/index.html
 
 > 请用上面的在线链接分享。临时托管（litterbox 等）会过期 404；`punkhumor.github.io` 需先在仓库开启 GitHub Pages。`file://` 本地打开无法同步全网投票。
 
