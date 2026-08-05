@@ -223,6 +223,12 @@ a {
   margin: 0 0 20px;
 }
 
+.muted {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
@@ -2040,9 +2046,116 @@ function selectAllLeaves(categories = DEFAULT_CATEGORIES) {
 }
 
 
+/** Shared vote store: jsonblob (full list) + counterapi (durable tallies). */
+
+const VOTE_BLOB_ID = "019fd160-4c05-761e-adaf-51047f77c55b";
+const VOTE_BLOB_URL = `https://jsonblob.com/api/jsonBlob/${VOTE_BLOB_ID}`;
+const COUNTER_NS = "vf-abtest-d882-live";
+const COUNTER_BASE = `https://api.counterapi.dev/v1/${COUNTER_NS}`;
+
+function newVoteId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `v-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function fetchRemoteVotes() {
+  const res = await fetch(VOTE_BLOB_URL, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`blob ${res.status}`);
+  const etag = res.headers.get("ETag");
+  const data = await res.json();
+  const votes = Array.isArray(data?.votes) ? data.votes : [];
+  return { votes, etag, updatedAt: data?.updatedAt || null };
+}
+
+async function putRemoteVotes(votes, etag) {
+  const body = {
+    votes,
+    updatedAt: new Date().toISOString(),
+  };
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (etag) headers["If-Match"] = etag;
+  const res = await fetch(VOTE_BLOB_URL, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (res.status === 412) return { conflict: true };
+  if (!res.ok) throw new Error(`blob put ${res.status}`);
+  return { conflict: false, votes };
+}
+
+async function appendRemoteVote(vote) {
+  let lastErr = null;
+  for (let i = 0; i < 6; i++) {
+    try {
+      const { votes, etag } = await fetchRemoteVotes();
+      if (votes.some((v) => v.id === vote.id)) return votes;
+      const next = votes.concat([vote]);
+      const put = await putRemoteVotes(next, etag);
+      if (put.conflict) continue;
+      return next;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 120 + i * 80));
+    }
+  }
+  throw lastErr || new Error("append failed");
+}
+
+async function bumpRemoteTally(prefer) {
+  const key = prefer === "B" ? "preferB" : "preferA";
+  const res = await fetch(`${COUNTER_BASE}/${key}/up`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`counter ${res.status}`);
+  const data = await res.json();
+  return Number(data?.count) || 0;
+}
+
+async function fetchRemoteTallies() {
+  const read = async (key) => {
+    try {
+      const res = await fetch(`${COUNTER_BASE}/${key}/`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Number(data?.count);
+    } catch {
+      return null;
+    }
+  };
+  const [A, B] = await Promise.all([read("preferA"), read("preferB")]);
+  return { A, B };
+}
+
+function mergeVotes(...lists) {
+  const map = new Map();
+  for (const list of lists) {
+    for (const v of list || []) {
+      if (!v || v.id == null) continue;
+      map.set(String(v.id), v);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => (a.at || 0) - (b.at || 0));
+}
+
+
 const OWNER_EMAIL = "punkhumorlyde@163.com";
 const STORAGE_KEY = "visibility-filter-abtest-votes-v5";
 const LEAF_UNIVERSE = allLeafIds();
+
+const remoteResults = {
+  status: "idle",
+  votes: [],
+  tallies: { A: null, B: null },
+  error: null,
+  loadedAt: null,
+};
 
 const GOALS = [
   { title: "只显示张三", tip: "地图上只剩张三亮着。" },
@@ -2479,6 +2592,39 @@ function addVote(vote) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(votes));
 }
 
+function allKnownVotes() {
+  return mergeVotes(remoteResults.votes, getVotes());
+}
+
+async function refreshRemoteResults({ silent = false } = {}) {
+  if (location.protocol === "file:") {
+    remoteResults.status = "error";
+    remoteResults.error = "本地打开无法同步，请用在线链接";
+    if (state.view === "results") paint();
+    return false;
+  }
+  remoteResults.status = "loading";
+  if (!silent && state.view === "results") paint();
+  try {
+    const [{ votes }, tallies] = await Promise.all([
+      fetchRemoteVotes(),
+      fetchRemoteTallies(),
+    ]);
+    remoteResults.votes = votes;
+    remoteResults.tallies = tallies;
+    remoteResults.status = "ok";
+    remoteResults.error = null;
+    remoteResults.loadedAt = Date.now();
+    if (state.view === "results") paint();
+    return true;
+  } catch (err) {
+    remoteResults.status = "error";
+    remoteResults.error = err?.message || "同步失败";
+    if (state.view === "results") paint();
+    return false;
+  }
+}
+
 function renderNav() {
   const ab =
     session.first === "A"
@@ -2557,31 +2703,65 @@ function renderVote() {
 }
 
 function renderResults() {
-  const votes = getVotes();
+  const local = getVotes();
+  const remote = remoteResults.votes || [];
+  const votes = allKnownVotes();
   const preferA = votes.filter((v) => v.prefer === "A").length;
   const preferB = votes.filter((v) => v.prefer === "B").length;
+  const tallyA = remoteResults.tallies?.A;
+  const tallyB = remoteResults.tallies?.B;
+
+  let statusLine = "";
+  if (remoteResults.status === "loading") {
+    statusLine = `<p class="lead">正在拉取全网投票…</p>`;
+  } else if (remoteResults.status === "error") {
+    statusLine = `<p class="lead">远程同步失败：${
+      remoteResults.error || "未知错误"
+    }。下面仍显示本机记录。</p>`;
+  } else if (remoteResults.status === "ok") {
+    const when = remoteResults.loadedAt
+      ? new Date(remoteResults.loadedAt).toLocaleTimeString()
+      : "";
+    statusLine = `<p class="lead">已同步全网 <strong>${remote.length}</strong> 票${
+      when ? `（${when}）` : ""
+    }；本机另有 ${local.length} 条缓存。</p>`;
+  } else {
+    statusLine = `<p class="lead">打开本页会自动拉取其他人的投票。</p>`;
+  }
+
+  const tallyNote =
+    tallyA != null || tallyB != null
+      ? `<p class="muted" style="margin-top:8px">备用计数：A ${
+          tallyA ?? "—"
+        } · B ${tallyB ?? "—"}</p>`
+      : "";
+
   const list = votes.length
     ? votes
         .slice()
         .reverse()
-        .map(
-          (v) => `<div class="result-card">
+        .map((v) => {
+          const mine = local.some((l) => l.id && l.id === v.id);
+          return `<div class="result-card">
           <div><strong>投给方案 ${v.prefer}</strong> · ${new Date(
             v.at
-          ).toLocaleString()}</div>
-        </div>`
-        )
+          ).toLocaleString()}${mine ? " · 本机" : ""}</div>
+        </div>`;
+        })
         .join("")
-    : `<p class="lead">还没有本机投票。</p>`;
+    : `<p class="lead">还没有投票记录。</p>`;
 
   return `<section class="panel panel-pad">
-    <h2 class="section-title">本机汇总</h2>
+    <h2 class="section-title">投票汇总</h2>
+    ${statusLine}
     <div class="compare-grid">
       <div class="compare-card"><h3>方案 A</h3><p><strong>${preferA}</strong> 票</p></div>
       <div class="compare-card"><h3>方案 B</h3><p><strong>${preferB}</strong> 票</p></div>
     </div>
+    ${tallyNote}
     <div class="results-list" style="margin-top:16px">${list}</div>
     <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-primary" type="button" data-act="refresh-votes">刷新全网</button>
       <button class="btn btn-secondary" type="button" data-act="export">导出 JSON</button>
       <button class="btn btn-ghost" type="button" data-act="clear-votes">清除本机记录</button>
     </div>
@@ -2606,7 +2786,12 @@ function paint() {
       ${renderPanel("B", { scope: "cmp-B", engine: state.compare.B, compact: true })}
     </div>`;
   } else if (state.view === "vote") main.innerHTML = renderVote();
-  else if (state.view === "results") main.innerHTML = renderResults();
+  else if (state.view === "results") {
+    main.innerHTML = renderResults();
+    if (remoteResults.status === "idle" || remoteResults.status === "error") {
+      refreshRemoteResults({ silent: remoteResults.status === "error" });
+    }
+  }
 }
 
 async function submitVote(form) {
@@ -2614,12 +2799,34 @@ async function submitVote(form) {
   const prefer = fd.get("prefer");
   if (!prefer) return;
   const vote = {
+    id: newVoteId(),
     prefer,
     map: state.map,
     first: session.first,
     at: Date.now(),
   };
   addVote(vote);
+
+  let synced = false;
+  if (location.protocol !== "file:") {
+    try {
+      const remoteVotes = await appendRemoteVote(vote);
+      remoteResults.votes = remoteVotes;
+      remoteResults.status = "ok";
+      remoteResults.error = null;
+      remoteResults.loadedAt = Date.now();
+      synced = true;
+      try {
+        const count = await bumpRemoteTally(prefer);
+        if (prefer === "B") remoteResults.tallies.B = count;
+        else remoteResults.tallies.A = count;
+      } catch {
+        /* tally is secondary */
+      }
+    } catch {
+      synced = false;
+    }
+  }
 
   const text = `【显隐筛选投票】投给方案 ${vote.prefer}
 映射: A=${vote.map.A}, B=${vote.map.B}
@@ -2636,18 +2843,24 @@ async function submitVote(form) {
           map: JSON.stringify(vote.map),
           first: vote.first,
           at: new Date(vote.at).toISOString(),
+          id: vote.id,
           _subject: `[显隐筛选] 投给方案${vote.prefer}`,
           _template: "table",
+          _captcha: "false",
         }),
       });
       if (!res.ok) throw new Error("fail");
       emailed = true;
-      showToast("已提交");
     } catch {
       emailed = false;
     }
   }
-  if (!emailed) {
+
+  if (synced) {
+    showToast(emailed ? "已提交到全网汇总" : "已写入全网汇总");
+  } else if (emailed) {
+    showToast("已发邮件（全网同步失败）");
+  } else {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -2658,10 +2871,11 @@ async function submitVote(form) {
       `[显隐筛选] 投给方案${vote.prefer}`
     )}&body=${encodeURIComponent(text)}`;
     a.click();
-    showToast("已复制并打开邮件");
+    showToast("同步失败，已复制并打开邮件");
   }
   state.view = "results";
   paint();
+  if (!synced) refreshRemoteResults({ silent: true });
 }
 
 function wire() {
@@ -2674,6 +2888,7 @@ function wire() {
       state.filterSheet = false;
       state.infoSheet = false;
       paint();
+      if (state.view === "results") refreshRemoteResults({ silent: true });
       return;
     }
 
@@ -2697,7 +2912,7 @@ function wire() {
     }
 
     if (e.target.closest("[data-act='export']")) {
-      const blob = new Blob([JSON.stringify(getVotes(), null, 2)], {
+      const blob = new Blob([JSON.stringify(allKnownVotes(), null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
@@ -2709,8 +2924,13 @@ function wire() {
       return;
     }
 
+    if (e.target.closest("[data-act='refresh-votes']")) {
+      refreshRemoteResults();
+      return;
+    }
+
     if (e.target.closest("[data-act='clear-votes']")) {
-      if (confirm("清除本机投票？")) {
+      if (confirm("清除本机投票缓存？不会删除全网已同步的票。")) {
         localStorage.removeItem(STORAGE_KEY);
         paint();
       }

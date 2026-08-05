@@ -7,12 +7,15 @@ ROOT = Path(__file__).resolve().parent
 
 def demodule(src: str) -> str:
     src = re.sub(r"^import\s+.*?from\s+['\"].*?['\"];\s*\n?", "", src, flags=re.M | re.S)
-    return src.replace("export const ", "const ").replace("export function ", "function ")
+    src = re.sub(r"^export\s+async\s+function\s+", "async function ", src, flags=re.M)
+    src = re.sub(r"^export\s+function\s+", "function ", src, flags=re.M)
+    src = re.sub(r"^export\s+const\s+", "const ", src, flags=re.M)
+    return src
 
 css = (ROOT / "css/styles.css").read_text()
 js = "\n\n".join(
     demodule((ROOT / p).read_text())
-    for p in ("js/data.js", "js/filters.js", "js/app.js")
+    for p in ("js/data.js", "js/filters.js", "js/votes-store.js", "js/app.js")
 )
 
 body = """
@@ -57,6 +60,8 @@ for path in (
     ROOT / "index.html",
     ROOT / "打开即用-显隐筛选AB测试.html",
     ROOT.parent / "打开即用-显隐筛选AB测试.html",
+    ROOT.parent / "docs" / "index.html",
 ):
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(out)
     print("wrote", path)

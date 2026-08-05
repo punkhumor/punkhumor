@@ -5,7 +5,10 @@
 ## 打开
 
 - 文件：`打开即用-显隐筛选AB测试.html`（仓库根目录）
-- 在线：https://htmlpreview.github.io/?https://raw.githubusercontent.com/punkhumor/punkhumor/cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
+- **在线（推荐）**：https://raw.githack.com/punkhumor/punkhumor/cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
+- 备用：https://cdn.jsdelivr.net/gh/punkhumor/punkhumor@cursor/visibility-filter-abtest-d882/visibility-filter-abtest/index.html
+
+> 请用上面的在线链接分享。临时托管（litterbox 等）会过期 404；`punkhumor.github.io` 需先在仓库开启 GitHub Pages。`file://` 本地打开无法同步全网投票。
 
 ## 用法
 
@@ -15,6 +18,6 @@
 1. 哪种交互被叫做「方案 A / B」
 2. 默认先进入 A 还是 B
 
-投票会记下映射关系，方便你对照真实是哪套交互。
+投票会写入共享汇总（所有人打开「汇总」都能看到），并记下映射关系。汇总页可点「刷新全网」。
 
 改收件邮箱：编辑 HTML / `js/app.js` 中的 `OWNER_EMAIL`，再运行 `python3 bundle.py`。
