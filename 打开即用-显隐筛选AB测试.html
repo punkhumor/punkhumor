@@ -1,0 +1,2973 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>物体显隐筛选 · 对比测试</title>
+<meta name="description" content="对比两种显隐筛选交互并投票。打开即用。" />
+<style>
+:root {
+  --bg: #0f1419;
+  --bg-elevated: #1a222c;
+  --bg-panel: #151c24;
+  --bg-soft: #243040;
+  --line: rgba(232, 238, 245, 0.1);
+  --text: #e8eef5;
+  --text-muted: #8b9aab;
+  --accent: #2bb8a6;
+  --accent-dim: rgba(43, 184, 166, 0.18);
+  --accent-strong: #1f9a8a;
+  --warn: #e8a54b;
+  --danger: #e06b6b;
+  --ok: #5ecf8a;
+  --marker: #f0c14a;
+  --marker-dim: rgba(240, 193, 74, 0.25);
+  --design-a: #4aa3e8;
+  --design-b: #2bb8a6;
+  --radius: 12px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --font-display: "Sora", "Noto Sans SC", sans-serif;
+  --font-body: "Noto Sans SC", "Source Sans 3", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 700px at 10% -10%, rgba(43, 184, 166, 0.12), transparent 55%),
+    radial-gradient(900px 600px at 100% 0%, rgba(74, 163, 232, 0.1), transparent 50%),
+    linear-gradient(165deg, #0c1117 0%, #121a22 45%, #0e151c 100%);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+body {
+  min-height: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  color: var(--accent);
+}
+
+.app-shell {
+  width: min(1480px, calc(100% - 20px));
+  margin: 0 auto;
+  padding: 10px 0 12px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+#main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#main > .panel,
+#main > .workspace,
+#main > .compare-workspaces {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-pad {
+  padding: 16px 18px;
+  overflow: auto;
+}
+
+.intro-fit {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.intro-fit .lead {
+  margin-bottom: 10px;
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.goal-card {
+  padding: 8px 10px;
+}
+
+.goal-card p {
+  font-size: 0.8rem;
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+.topbar-meta {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.nav-pill,
+.step-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  transition: 0.2s ease;
+  background: transparent;
+}
+
+.nav-pill:hover {
+  color: var(--text);
+  border-color: rgba(43, 184, 166, 0.35);
+}
+
+.nav-pill.active,
+.step-pill.active {
+  color: var(--text);
+  border-color: rgba(43, 184, 166, 0.45);
+  background: var(--accent-dim);
+}
+
+.step-pill.done {
+  color: var(--ok);
+  border-color: rgba(94, 207, 138, 0.35);
+}
+
+
+.panel {
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.panel-pad {
+  padding: 28px;
+}
+
+.hero-copy h2,
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  font-size: 1.45rem;
+}
+
+.lead {
+  color: var(--text-muted);
+  max-width: 62ch;
+  margin: 0 0 20px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 24px;
+}
+
+.tag {
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #06241f;
+  font-weight: 650;
+}
+
+.btn-secondary {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+}
+
+.btn-ghost {
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+}
+
+.btn-a {
+  background: color-mix(in srgb, var(--design-a) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--design-a) 55%, transparent);
+}
+
+.btn-b {
+  background: color-mix(in srgb, var(--design-b) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--design-b) 55%, transparent);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(200px, 250px);
+  grid-template-areas: "sidebar scene rail";
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.workspace.compact {
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  grid-template-areas: "sidebar scene";
+  min-height: 0;
+  height: 100%;
+}
+
+.sidebar,
+.filter-sheet {
+  grid-area: sidebar;
+}
+
+.scene-wrap {
+  grid-area: scene;
+}
+
+.side-rail,
+.info-sheet {
+  grid-area: rail;
+}
+
+.compare-workspaces {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1100px) {
+  .compare-workspaces {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-workspaces .workspace {
+    min-height: 0;
+  }
+
+  .compare-workspaces .scene {
+    min-height: 0;
+  }
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.sidebar-body .tree {
+  flex: 1;
+  min-height: 0;
+}
+
+.mode-switch-bar {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+}
+
+.mode-switch-bar.compact .mode-side {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sidebar-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mode-side {
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.mode-side.active {
+  color: #0b1c28;
+  background: linear-gradient(180deg, #7ec8ff, #4aa3e8);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(74, 163, 232, 0.35);
+}
+
+.mode-switch.switch {
+  width: 42px;
+  height: 24px;
+}
+
+.mode-switch .switch-track {
+  background: #3a4654;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.mode-switch input:checked + .switch-track {
+  background: var(--design-a);
+}
+
+.mode-switch .switch-track::after {
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.mode-switch input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
+.sidebar-foot {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.btn-sm {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  flex: 1;
+}
+
+.side-rail {
+  border-left: 1px solid var(--line);
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.side-goals {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.side-goal {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.side-goal:last-child {
+  border-bottom: none;
+}
+
+.side-goal b {
+  display: block;
+  font-size: 0.86rem;
+}
+
+.side-goal span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.roster {
+  padding: 12px;
+  flex: 1;
+}
+
+.roster-head {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.roster-list {
+  display: grid;
+  gap: 6px;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.roster-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+
+.roster-row strong {
+  font-size: 0.85rem;
+}
+
+.roster-row p {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.roster-row.off {
+  opacity: 0.38;
+}
+
+.roster-row.on {
+  border-color: rgba(43, 184, 166, 0.35);
+}
+
+.scene {
+  min-height: 0;
+  flex: 1;
+}
+
+.scene-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.side-goals {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.side-goal {
+  padding: 5px 0;
+}
+
+.side-goal b {
+  font-size: 0.78rem;
+}
+
+.side-goal span {
+  font-size: 0.7rem;
+}
+
+.roster {
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.roster-row {
+  padding: 5px 6px;
+}
+
+.roster-row p {
+  font-size: 0.68rem;
+}
+
+.sidebar-head {
+  padding: 10px 12px 8px;
+}
+
+.sidebar-head h3 {
+  font-size: 0.95rem;
+}
+
+.sidebar-foot {
+  padding: 8px 10px;
+}
+
+.person {
+  width: 38px;
+  height: 38px;
+}
+
+.person .dot {
+  width: 30px;
+  height: 30px;
+  font-size: 0.68rem;
+}
+
+.vote-big {
+  max-width: 420px;
+}
+
+.vote-choice {
+  font-size: 1.1rem;
+  padding: 16px !important;
+}
+
+.vote-choice span {
+  font-weight: 650;
+}
+
+.mode-opt {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.mode-opt.on {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.switch.compact {
+  width: 42px;
+  height: 24px;
+}
+
+.switch.compact .switch-track::after {
+  width: 18px;
+  height: 18px;
+}
+
+.switch.compact input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
+.cat-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.tree-row.lv2 {
+  padding-left: 4px;
+}
+
+.tree-row.lv3 {
+  padding-left: 8px;
+  opacity: 0.95;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.goal-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 20px;
+}
+
+.goal-card {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.goal-card p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.goal-idx {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.person .dot {
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.scene-legend {
+  max-width: min(420px, calc(100% - 24px));
+}
+
+.sidebar-head {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.design-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.design-badge.a {
+  color: var(--design-a);
+}
+
+.design-badge.b {
+  color: var(--design-b);
+}
+
+.sidebar-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.sidebar-head p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.mode-switch {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--line);
+}
+
+.mode-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mode-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.mode-desc {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #3a4654;
+  transition: 0.2s ease;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: 0.2s ease;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--design-a);
+}
+
+.switch input:checked + .switch-track::after {
+  transform: translateX(20px);
+}
+
+.tree {
+  padding: 8px;
+  overflow: auto;
+  flex: 1;
+}
+
+.tree-node {
+  border-radius: 8px;
+  margin-bottom: 2px;
+}
+
+.tree-row {
+  display: grid;
+  grid-template-columns: 22px 22px 1fr;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-row.parent.active {
+  background: color-mix(in srgb, var(--design-a) 18%, transparent);
+}
+
+.tree-row.parent.b-active {
+  background: color-mix(in srgb, var(--design-b) 18%, transparent);
+}
+
+.twist {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: 6px;
+}
+
+.twist:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.twist svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.18s ease;
+}
+
+.twist[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(232, 238, 245, 0.45);
+  display: grid;
+  place-items: center;
+  background: transparent;
+  transition: 0.15s ease;
+}
+
+.checkbox.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox.on.a {
+  background: var(--design-a);
+  border-color: var(--design-a);
+}
+
+.checkbox.partial {
+  background: color-mix(in srgb, var(--design-a) 45%, transparent);
+  border-color: var(--design-a);
+}
+
+.checkbox.partial.b,
+.checkbox.on.b {
+  background: var(--design-b);
+  border-color: var(--design-b);
+}
+
+.checkbox.partial.b {
+  background: color-mix(in srgb, var(--design-b) 45%, transparent);
+}
+
+.checkbox svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+}
+
+.checkbox.on svg,
+.checkbox.partial svg {
+  opacity: 1;
+}
+
+.tree-label {
+  font-size: 0.92rem;
+}
+
+.dim-tag {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.dim-tag.on {
+  color: var(--design-b);
+}
+
+.tree-children {
+  padding-left: 26px;
+}
+
+.scene-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.task-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.task-bar h4 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.task-bar p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.task-status {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.task-status.match {
+  color: var(--ok);
+  border-color: rgba(94, 207, 138, 0.4);
+  background: rgba(94, 207, 138, 0.1);
+}
+
+.task-status.miss {
+  color: var(--warn);
+  border-color: rgba(232, 165, 75, 0.4);
+  background: rgba(232, 165, 75, 0.1);
+}
+
+.scene {
+  position: relative;
+  flex: 1;
+  min-height: 460px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 30% 40%, rgba(43, 184, 166, 0.08), transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(74, 163, 232, 0.07), transparent 35%),
+    #101820;
+  background-size: 40px 40px, 40px 40px, auto, auto, auto;
+  overflow: hidden;
+}
+
+.scene-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 20, 25, 0.82);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  backdrop-filter: blur(8px);
+}
+
+.person {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--marker-dim);
+  border: 2px solid var(--marker);
+  color: #1a1508;
+  font-weight: 700;
+  font-size: 0.72rem;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    filter 0.28s ease,
+    box-shadow 0.28s ease;
+  box-shadow: 0 0 0 0 transparent;
+  cursor: default;
+}
+
+.person .dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #ffe08a, #e2a93a);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.person.hidden-person {
+  opacity: 0.12;
+  filter: grayscale(1);
+  transform: translate(-50%, -50%) scale(0.86);
+  pointer-events: none;
+}
+
+.person.visible-person {
+  opacity: 1;
+  box-shadow: 0 0 0 6px rgba(240, 193, 74, 0.12);
+}
+
+.person-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  min-width: 160px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(12, 16, 20, 0.95);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.18s ease;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.person:hover .person-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.stats-bar strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.compare-card {
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.compare-card h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.compare-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.vote-form {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px 12px;
+  outline: none;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: rgba(43, 184, 166, 0.55);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.choice-group {
+  display: grid;
+  gap: 8px;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: rgba(43, 184, 166, 0.55);
+  background: var(--accent-dim);
+}
+
+.choice input {
+  margin-top: 3px;
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #132018;
+  border: 1px solid rgba(94, 207, 138, 0.4);
+  color: var(--ok);
+  box-shadow: var(--shadow);
+  transform: translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.25s ease;
+  z-index: 50;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.results-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.result-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.88rem;
+}
+
+.result-card strong {
+  color: var(--accent);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.mobile-topbar,
+.mobile-filter-bar,
+.sheet-handle,
+.sheet-backdrop,
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  html,
+  body {
+    overflow: auto;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    padding: 8px 0 16px;
+    width: min(100% - 16px, 1480px);
+  }
+
+  #main {
+    flex: none;
+    min-height: calc(100dvh - 120px);
+  }
+
+  #main > .panel,
+  #main > .workspace,
+  #main > .compare-workspaces {
+    flex: none;
+    min-height: calc(100dvh - 120px);
+    height: calc(100dvh - 120px);
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .topbar-meta {
+    text-align: left;
+    font-size: 0.75rem;
+  }
+
+  .steps {
+    gap: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .nav-pill {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    min-height: 36px;
+  }
+
+  .workspace,
+  .workspace.compact {
+    grid-template-columns: 1fr;
+    grid-template-areas: "scene";
+    height: 100%;
+    min-height: 0;
+  }
+
+  .compare-workspaces {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    height: auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .compare-workspaces .workspace {
+    height: min(70dvh, 560px);
+  }
+
+  .scene-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    position: relative;
+  }
+
+  .scene {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+  }
+
+  .mobile-top-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .mobile-filter-bar {
+    display: block;
+    flex-shrink: 0;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .mobile-filter-btn {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1px solid rgba(74, 163, 232, 0.45);
+    background: linear-gradient(180deg, #3a7eb8, #2a5f8a);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 0.95rem;
+    font-weight: 650;
+  }
+
+  .mobile-only {
+    display: inline-flex !important;
+  }
+
+  .sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .workspace.sheet-open .sheet-backdrop,
+  .workspace.info-open .sheet-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar,
+  .filter-sheet,
+  .side-rail,
+  .info-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-height: min(78dvh, 640px);
+    z-index: 50;
+    border-right: none;
+    border-left: none;
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    transform: translateY(110%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-elevated);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .workspace.sheet-open .filter-sheet {
+    transform: translateY(0);
+  }
+
+  .workspace.info-open .info-sheet {
+    transform: translateY(0);
+  }
+
+  .sheet-handle {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0 4px;
+    flex-shrink: 0;
+  }
+
+  .sheet-handle i {
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .sidebar-body {
+    margin: 0 10px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .sidebar-body .tree {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
+  .tree-row {
+    min-height: 44px;
+    padding: 10px 8px;
+  }
+
+  .checkbox {
+    width: 22px;
+    height: 22px;
+  }
+
+  .twist {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sidebar-foot {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+  }
+
+  .side-rail .roster,
+  .info-sheet .roster {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .person {
+    width: 42px;
+    height: 42px;
+  }
+
+  .person .dot {
+    width: 34px;
+    height: 34px;
+  }
+
+  .person-tip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: none;
+    white-space: normal;
+    min-width: 120px;
+    max-width: 160px;
+    font-size: 0.68rem;
+  }
+
+  .goal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intro-fit {
+    overflow: auto;
+    max-height: none;
+  }
+
+  .panel-pad {
+    overflow: auto;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
+@media (min-width: 1101px) {
+  .mobile-topbar,
+  .mobile-filter-bar,
+  .sheet-handle,
+  .sheet-backdrop,
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<div id="app" class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="brand">显隐筛选 <span>对比测试</span></p>
+    </div>
+    <div class="topbar-meta">
+      说明 → 试用 → 投票，可随时跳转<br />
+      每次打开随机方案先后
+    </div>
+  </header>
+
+  <nav class="steps" id="nav" aria-label="导航"></nav>
+  <div id="main"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/** Taxonomy (up to 3 levels) + scene people. */
+
+const CATEGORY_COLORS = {
+  identity: "#5b8def",
+  department: "#2bb8a6",
+  position: "#e8a54b",
+  workType: "#c986e8",
+};
+
+const CATEGORIES = [
+  {
+    id: "identity",
+    label: "人员身份",
+    children: [
+      { id: "id-internal", label: "内部员工" },
+      { id: "id-contractor", label: "承包商" },
+      {
+        id: "id-visitor",
+        label: "外来人员",
+        children: [
+          { id: "id-visitor-guest", label: "临时访客" },
+          { id: "id-visitor-vendor", label: "供应商来访" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "department",
+    label: "部门",
+    children: [
+      {
+        id: "dept-prod",
+        label: "生产部",
+        children: [
+          { id: "dept-prod-1", label: "生产一组" },
+          { id: "dept-prod-2", label: "生产二组" },
+        ],
+      },
+      { id: "dept-admin", label: "行政部" },
+      {
+        id: "dept-test",
+        label: "测试部",
+        children: [
+          { id: "dept-test-qa", label: "质量测试" },
+          { id: "dept-test-auto", label: "自动化测试" },
+        ],
+      },
+      { id: "dept-tech", label: "技术部" },
+      { id: "dept-market", label: "市场部" },
+    ],
+  },
+  {
+    id: "position",
+    label: "岗位",
+    children: [
+      {
+        id: "pos-engineer",
+        label: "工程师",
+        children: [
+          { id: "pos-engineer-soft", label: "软件工程师" },
+          { id: "pos-engineer-hard", label: "硬件工程师" },
+        ],
+      },
+      { id: "pos-qa", label: "质检员" },
+      { id: "pos-pm", label: "项目经理" },
+      { id: "pos-safety", label: "安全员" },
+    ],
+  },
+  {
+    id: "workType",
+    label: "作业类型",
+    children: [
+      {
+        id: "work-fire",
+        label: "动火作业",
+        children: [
+          { id: "work-fire-weld", label: "焊接" },
+          { id: "work-fire-cut", label: "切割" },
+        ],
+      },
+      { id: "work-earth", label: "动土作业" },
+      { id: "work-height", label: "高处作业" },
+      { id: "work-electric", label: "临时用电作业" },
+      { id: "work-space", label: "受限空间作业" },
+    ],
+  },
+];
+
+/** Leaf nodes under a node (node itself if it has no children). */
+function leafNodes(node) {
+  if (!node.children?.length) return [node];
+  return node.children.flatMap(leafNodes);
+}
+
+function leafIdsUnder(node) {
+  return leafNodes(node).map((n) => n.id);
+}
+
+function allLeafIds(categories = CATEGORIES) {
+  return categories.flatMap((cat) => leafIdsUnder(cat));
+}
+
+/** Every selectable id → meta (leaves + intermediate groups for labeling). */
+const ATTR_META = {};
+for (const cat of CATEGORIES) {
+  ATTR_META[cat.id] = {
+    categoryId: cat.id,
+    categoryLabel: cat.label,
+    label: cat.label,
+    level: 1,
+  };
+  for (const child of cat.children) {
+    ATTR_META[child.id] = {
+      categoryId: cat.id,
+      categoryLabel: cat.label,
+      label: child.label,
+      level: 2,
+    };
+    if (child.children?.length) {
+      for (const g of child.children) {
+        ATTR_META[g.id] = {
+          categoryId: cat.id,
+          categoryLabel: cat.label,
+          label: g.label,
+          level: 3,
+          parentId: child.id,
+        };
+      }
+    }
+  }
+}
+
+/**
+ * People attrs are leaf ids only.
+ * Missing a category = unbound for Design B.
+ */
+const PEOPLE = [
+  {
+    id: "zhang",
+    name: "张三",
+    x: 18,
+    y: 28,
+    attrs: ["dept-prod-1", "pos-engineer-soft", "id-internal", "work-fire-weld"],
+  },
+  {
+    id: "li",
+    name: "李四",
+    x: 42,
+    y: 22,
+    attrs: ["dept-admin", "pos-engineer-hard", "id-internal", "work-earth"],
+  },
+  {
+    id: "wang",
+    name: "王五",
+    x: 68,
+    y: 30,
+    attrs: ["pos-engineer-soft", "id-visitor-guest"],
+  },
+  {
+    id: "zhao",
+    name: "赵六",
+    x: 25,
+    y: 55,
+    attrs: ["dept-prod-2"],
+  },
+  {
+    id: "sun",
+    name: "孙七",
+    x: 55,
+    y: 48,
+    attrs: [],
+  },
+  {
+    id: "qian",
+    name: "钱八",
+    x: 78,
+    y: 58,
+    attrs: ["pos-engineer-hard"],
+  },
+  {
+    id: "jiu",
+    name: "九九",
+    x: 35,
+    y: 72,
+    attrs: ["pos-qa"],
+  },
+  {
+    id: "chen",
+    name: "陈晨",
+    x: 62,
+    y: 75,
+    attrs: ["dept-test-qa", "pos-engineer-soft", "id-internal", "work-fire-cut"],
+  },
+  {
+    id: "zhou",
+    name: "周杰",
+    x: 12,
+    y: 80,
+    attrs: ["dept-test-auto", "pos-engineer-hard", "id-internal", "work-earth"],
+  },
+  {
+    id: "wu",
+    name: "吴敏",
+    x: 48,
+    y: 38,
+    attrs: ["dept-test-qa", "pos-engineer-soft", "id-contractor", "work-earth"],
+  },
+  {
+    id: "zheng",
+    name: "郑浩",
+    x: 85,
+    y: 25,
+    attrs: ["dept-test-auto", "pos-qa", "id-internal", "work-height"],
+  },
+  {
+    id: "huang",
+    name: "黄蕾",
+    x: 72,
+    y: 42,
+    attrs: ["dept-tech", "pos-pm", "id-internal", "work-electric"],
+  },
+  {
+    id: "xu",
+    name: "徐鹏",
+    x: 30,
+    y: 40,
+    attrs: ["dept-market", "pos-safety", "id-contractor", "work-space"],
+  },
+  {
+    id: "he",
+    name: "何静",
+    x: 88,
+    y: 70,
+    attrs: ["dept-admin", "pos-qa", "id-visitor-vendor", "work-fire-weld"],
+  },
+];
+
+function labelForAttr(id) {
+  return ATTR_META[id]?.label ?? id;
+}
+
+function categoryOfAttr(id) {
+  return ATTR_META[id]?.categoryId ?? null;
+}
+
+function attrsInCategory(person, categoryId) {
+  return person.attrs.filter((id) => ATTR_META[id]?.categoryId === categoryId);
+}
+
+/** Marker color: prefer department, then identity, then position, then work. */
+function colorForPerson(person) {
+  const order = ["department", "identity", "position", "workType"];
+  for (const catId of order) {
+    if (attrsInCategory(person, catId).length) return CATEGORY_COLORS[catId];
+  }
+  return "#8b9aab";
+}
+
+
+function asSet(selectedIds) {
+  return selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
+}
+
+function isAllSelected(selected, universe) {
+  return (
+    selected.size >= universe.length && universe.every((id) => selected.has(id))
+  );
+}
+
+/**
+ * Smart AND constraints for 匹配显示 / Design B:
+ * - 某大类叶子全选 → 约束为「属于该大类」(有该类任一叶子即可)
+ * - 某二级分组全选 → 约束为「属于该分组」
+ * - 未全选的子类叶子 → 每个叶子单独作为必须命中的 tag（AND）
+ * - 所有约束之间 AND
+ */
+function buildSmartConstraints(
+  selectedIds,
+  categories = DEFAULT_CATEGORIES
+) {
+  const selected = asSet(selectedIds);
+  const constraints = [];
+  const cats = categories || DEFAULT_CATEGORIES;
+
+  for (const cat of cats) {
+    const catLeaves = leafIdsUnder(cat);
+    const selInCat = catLeaves.filter((id) => selected.has(id));
+    if (selInCat.length === 0) continue;
+
+    if (selInCat.length === catLeaves.length) {
+      constraints.push({ type: "any", ids: catLeaves, label: cat.label });
+      continue;
+    }
+
+    // Within a category: always OR — collect all selected leaves into one "any" group
+    constraints.push({ type: "any", ids: selInCat, label: cat.label + "(部分)" });
+  }
+
+  return constraints;
+}
+
+function matchSmartConstraints(person, constraints) {
+  return constraints.every((c) => {
+    if (c.type === "any") return c.ids.some((id) => person.attrs.includes(id));
+    if (c.type === "has") return person.attrs.includes(c.id);
+    return false;
+  });
+}
+
+/**
+ * Build strict-AND constraints for 匹配显示 (Design A filter mode).
+ * - Every leaf is individually required (AND), even within the same category
+ * - EXCEPT: when a group node (2-level or top-level) is fully selected,
+ *   it collapses to "belongs to that group" (any)
+ */
+function buildStrictConstraints(
+  selectedIds,
+  categories = DEFAULT_CATEGORIES
+) {
+  const selected = asSet(selectedIds);
+  const constraints = [];
+
+  for (const cat of (categories || DEFAULT_CATEGORIES)) {
+    const catLeaves = leafIdsUnder(cat);
+    const selInCat = catLeaves.filter((id) => selected.has(id));
+    if (selInCat.length === 0) continue;
+
+    if (selInCat.length === catLeaves.length) {
+      constraints.push({ type: "any", ids: catLeaves, label: cat.label });
+      continue;
+    }
+
+    for (const child of cat.children) {
+      const leaves = leafIdsUnder(child);
+      const selMid = leaves.filter((id) => selected.has(id));
+      if (selMid.length === 0) continue;
+
+      if (child.children?.length && selMid.length === leaves.length) {
+        constraints.push({ type: "any", ids: leaves, label: child.label });
+      } else {
+        for (const id of selMid) {
+          constraints.push({ type: "has", id, label: ATTR_META[id]?.label || id });
+        }
+      }
+    }
+  }
+
+  return constraints;
+}
+
+/**
+ * Design A (带模式)
+ * - multi  多选显示: OR — 带任一标签即显示
+ * - filter 匹配显示: strict AND — 每个叶子都要有(分组全选合并为属于该组)
+ */
+function filterDesignA(
+  people,
+  selectedIds,
+  mode,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
+  const universe = leafUniverse || allLeafIds();
+  const selected = asSet(selectedIds);
+
+  if (selected.size === 0) return [];
+  if (isAllSelected(selected, universe)) return people.map((p) => p.id);
+
+  if (mode === "multi") {
+    return people
+      .filter((p) => p.attrs.some((id) => selected.has(id)))
+      .map((p) => p.id);
+  }
+
+  const constraints = buildStrictConstraints(selected, categories);
+  if (constraints.length === 0) return [];
+  return people
+    .filter((p) => matchSmartConstraints(p, constraints))
+    .map((p) => p.id);
+}
+
+/**
+ * Design B：始终 smart AND（类内全选按类，未全选叶子 AND，类间 AND）
+ */
+function filterDesignB(
+  people,
+  selectedIds,
+  leafUniverse,
+  categories = DEFAULT_CATEGORIES
+) {
+  const universe = leafUniverse || allLeafIds();
+  const selected = asSet(selectedIds);
+
+  if (selected.size === 0) return [];
+  if (isAllSelected(selected, universe)) return people.map((p) => p.id);
+
+  const constraints = buildSmartConstraints(selected, categories);
+  if (constraints.length === 0) return [];
+  return people
+    .filter((p) => matchSmartConstraints(p, constraints))
+    .map((p) => p.id);
+}
+
+function initialDesignAState(categories = DEFAULT_CATEGORIES) {
+  const leaves = allLeafIds(categories);
+  const expanded = {};
+  for (const cat of categories) {
+    expanded[cat.id] = cat.id === "department";
+    for (const child of cat.children) {
+      if (child.children?.length) expanded[child.id] = false;
+    }
+  }
+  return {
+    mode: "multi",
+    selected: new Set(leaves),
+    expanded,
+  };
+}
+
+function initialDesignBState(categories = DEFAULT_CATEGORIES) {
+  const leaves = allLeafIds(categories);
+  const expanded = {};
+  for (const cat of categories) {
+    expanded[cat.id] = cat.id === "department";
+    for (const child of cat.children) {
+      if (child.children?.length) expanded[child.id] = false;
+    }
+  }
+  return {
+    selected: new Set(leaves),
+    expanded,
+  };
+}
+
+function nodeCheckState(node, selectedIds) {
+  const leaves = leafIdsUnder(node);
+  if (leaves.length === 0) return "none";
+  const selected = asSet(selectedIds);
+  const n = leaves.filter((id) => selected.has(id)).length;
+  if (n === 0) return "none";
+  if (n === leaves.length) return "all";
+  return "partial";
+}
+
+function parentCheckState(category, selectedIds) {
+  return nodeCheckState(category, selectedIds);
+}
+
+function clearAllLeaves() {
+  return new Set();
+}
+
+function selectAllLeaves(categories = DEFAULT_CATEGORIES) {
+  return new Set(allLeafIds(categories));
+}
+
+
+/** Shared vote store: jsonblob (full list) + counterapi (durable tallies). */
+
+const VOTE_BLOB_ID = "019fd160-4c05-761e-adaf-51047f77c55b";
+const VOTE_BLOB_URL = `https://jsonblob.com/api/jsonBlob/${VOTE_BLOB_ID}`;
+const COUNTER_NS = "vf-abtest-d882-live";
+const COUNTER_BASE = `https://api.counterapi.dev/v1/${COUNTER_NS}`;
+
+function newVoteId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `v-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function fetchRemoteVotes() {
+  const res = await fetch(VOTE_BLOB_URL, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`blob ${res.status}`);
+  const etag = res.headers.get("ETag");
+  const data = await res.json();
+  const votes = Array.isArray(data?.votes) ? data.votes : [];
+  return { votes, etag, updatedAt: data?.updatedAt || null };
+}
+
+async function putRemoteVotes(votes, etag) {
+  const body = {
+    votes,
+    updatedAt: new Date().toISOString(),
+  };
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (etag) headers["If-Match"] = etag;
+  const res = await fetch(VOTE_BLOB_URL, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (res.status === 412) return { conflict: true };
+  if (!res.ok) throw new Error(`blob put ${res.status}`);
+  return { conflict: false, votes };
+}
+
+async function appendRemoteVote(vote) {
+  let lastErr = null;
+  for (let i = 0; i < 6; i++) {
+    try {
+      const { votes, etag } = await fetchRemoteVotes();
+      if (votes.some((v) => v.id === vote.id)) return votes;
+      const next = votes.concat([vote]);
+      const put = await putRemoteVotes(next, etag);
+      if (put.conflict) continue;
+      return next;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 120 + i * 80));
+    }
+  }
+  throw lastErr || new Error("append failed");
+}
+
+async function bumpRemoteTally(prefer) {
+  const key = prefer === "B" ? "preferB" : "preferA";
+  const res = await fetch(`${COUNTER_BASE}/${key}/up`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`counter ${res.status}`);
+  const data = await res.json();
+  return Number(data?.count) || 0;
+}
+
+async function fetchRemoteTallies() {
+  const read = async (key) => {
+    try {
+      const res = await fetch(`${COUNTER_BASE}/${key}/`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Number(data?.count);
+    } catch {
+      return null;
+    }
+  };
+  const [A, B] = await Promise.all([read("preferA"), read("preferB")]);
+  return { A, B };
+}
+
+function mergeVotes(...lists) {
+  const map = new Map();
+  for (const list of lists) {
+    for (const v of list || []) {
+      if (!v || v.id == null) continue;
+      map.set(String(v.id), v);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => (a.at || 0) - (b.at || 0));
+}
+
+
+const OWNER_EMAIL = "punkhumorlyde@163.com";
+const STORAGE_KEY = "visibility-filter-abtest-votes-v5";
+const LEAF_UNIVERSE = allLeafIds();
+
+const remoteResults = {
+  status: "idle",
+  votes: [],
+  tallies: { A: null, B: null },
+  error: null,
+  loadedAt: null,
+};
+
+const GOALS = [
+  { title: "只显示张三", tip: "地图上只剩张三亮着。" },
+  { title: "所有质检员", tip: "岗位勾选「质检员」。" },
+  { title: "供应商来访", tip: "外来人员 → 供应商来访。" },
+  { title: "整个外来人员", tip: "全选「外来人员」分组。" },
+  { title: "生产一组工程师", tip: "生产一组 + 工程师相关。" },
+  { title: "任意动火相关", tip: "动火作业或其子项。" },
+  { title: "身份+生产一组", tip: "人员身份全选，再加生产一组。" },
+  { title: "清空全关", tip: "点「重置全关」，应无人显示。" },
+];
+
+function freshSession() {
+  const flip = Math.random() < 0.5;
+  return {
+    map: flip
+      ? { A: "toggle", B: "facet" }
+      : { A: "facet", B: "toggle" },
+    first: Math.random() < 0.5 ? "A" : "B",
+  };
+}
+
+const session = freshSession();
+
+const state = {
+  view: "intro",
+  map: session.map,
+  toggle: initialDesignAState(CATEGORIES),
+  facet: initialDesignBState(CATEGORIES),
+  compare: { A: null, B: null },
+  filterSheet: false,
+  infoSheet: false,
+};
+
+function cloneEngine(src) {
+  return {
+    mode: src.mode,
+    selected: new Set(src.selected),
+    expanded: { ...src.expanded },
+  };
+}
+
+function engineKeyForLabel(label) {
+  return state.map[label];
+}
+
+function resetEngine(key, toEmpty = false) {
+  if (key === "toggle") {
+    state.toggle = initialDesignAState(CATEGORIES);
+    if (toEmpty) state.toggle.selected = clearAllLeaves(CATEGORIES);
+  } else {
+    state.facet = initialDesignBState(CATEGORIES);
+    if (toEmpty) state.facet.selected = clearAllLeaves(CATEGORIES);
+  }
+}
+
+function visibleFor(label, engineOverride) {
+  const key = engineKeyForLabel(label);
+  const eng = engineOverride || (key === "toggle" ? state.toggle : state.facet);
+  if (key === "toggle") {
+    return new Set(
+      filterDesignA(PEOPLE, eng.selected, eng.mode, LEAF_UNIVERSE, CATEGORIES)
+    );
+  }
+  return new Set(
+    filterDesignB(PEOPLE, eng.selected, LEAF_UNIVERSE, CATEGORIES)
+  );
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function checkIcon(partial = false) {
+  if (partial) {
+    return `<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 6h7" stroke="#06241f" stroke-width="2" stroke-linecap="round"/></svg>`;
+  }
+  return `<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.2 6.2l2.5 2.5 5-5.2" stroke="#06241f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function twistIcon() {
+  return `<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4 2.5L8 6 4 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function setLeaves(selected, leafIds, on) {
+  for (const id of leafIds) {
+    if (on) selected.add(id);
+    else selected.delete(id);
+  }
+}
+
+function toggleLeaves(selected, leafIds) {
+  const allOn = leafIds.every((id) => selected.has(id));
+  setLeaves(selected, leafIds, !allOn);
+}
+
+/** Mode switch sits in sidebar header — short labels, clear on/off */
+function renderModeToggle(eng, scope) {
+  const filterOn = eng.mode === "filter";
+  return `<div class="mode-switch-bar compact">
+    <span class="mode-side ${!filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="multi" role="button" tabindex="0">多选</span>
+    <label class="switch mode-switch" title="多选=任一即可 · 匹配=同时满足">
+      <input type="checkbox" data-scope="${scope}" data-act="t-mode-check" ${filterOn ? "checked" : ""} />
+      <span class="switch-track"></span>
+    </label>
+    <span class="mode-side ${filterOn ? "active" : ""}" data-scope="${scope}" data-act="t-mode-set" data-mode="filter" role="button" tabindex="0">匹配</span>
+  </div>`;
+}
+
+function renderTree(eng, scope, accent) {
+  return CATEGORIES.map((cat) => {
+    const catExpanded = !!eng.expanded[cat.id];
+    const pState = nodeCheckState(cat, eng.selected);
+    const checkClass =
+      pState === "all" ? `on ${accent}` : pState === "partial" ? `partial ${accent}` : "";
+    const color = CATEGORY_COLORS[cat.id];
+
+    const level2 = cat.children
+      .map((child) => {
+        const hasKids = !!child.children?.length;
+        const midExpanded = !!eng.expanded[child.id];
+        const cState = nodeCheckState(child, eng.selected);
+        const cClass =
+          cState === "all"
+            ? `on ${accent}`
+            : cState === "partial"
+              ? `partial ${accent}`
+              : "";
+
+        const level3 = hasKids
+          ? child.children
+              .map((g) => {
+                const on = eng.selected.has(g.id);
+                return `<div class="tree-node">
+                  <div class="tree-row child lv3" data-scope="${scope}" data-act="sel-leaf" data-id="${g.id}">
+                    <span></span>
+                    <span class="checkbox ${on ? `on ${accent}` : ""}">${checkIcon()}</span>
+                    <span class="tree-label">${g.label}</span>
+                  </div>
+                </div>`;
+              })
+              .join("")
+          : "";
+
+        return `<div class="tree-node">
+          <div class="tree-row child lv2" data-scope="${scope}" data-act="${
+            hasKids ? "sel-group" : "sel-leaf"
+          }" data-id="${child.id}">
+            ${
+              hasKids
+                ? `<button class="twist" type="button" aria-expanded="${midExpanded}" data-scope="${scope}" data-act="expand" data-id="${child.id}">${twistIcon()}</button>`
+                : `<span></span>`
+            }
+            <span class="checkbox ${cClass}" data-scope="${scope}" data-act="${
+              hasKids ? "sel-group" : "sel-leaf"
+            }" data-id="${child.id}">${checkIcon(cState === "partial")}</span>
+            <span class="tree-label">${child.label}</span>
+          </div>
+          ${
+            hasKids
+              ? `<div class="tree-children ${midExpanded ? "" : "hidden"}">${level3}</div>`
+              : ""
+          }
+        </div>`;
+      })
+      .join("");
+
+    return `<div class="tree-node">
+      <div class="tree-row parent" style="--cat-color:${color}" data-scope="${scope}" data-act="sel-group" data-id="${cat.id}">
+        <button class="twist" type="button" aria-expanded="${catExpanded}" data-scope="${scope}" data-act="expand" data-id="${cat.id}">${twistIcon()}</button>
+        <button type="button" class="checkbox ${checkClass}" data-scope="${scope}" data-act="sel-group" data-id="${cat.id}">${checkIcon(
+          pState === "partial"
+        )}</button>
+        <span class="tree-label"><span class="cat-dot" style="background:${color}"></span>${cat.label}</span>
+      </div>
+      <div class="tree-children ${catExpanded ? "" : "hidden"}">${level2}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderPeople(visible) {
+  return PEOPLE.map((person) => {
+    const isVisible = visible.has(person.id);
+    const color = colorForPerson(person);
+    const attrs =
+      person.attrs.length === 0
+        ? "未绑定分类"
+        : person.attrs.map(labelForAttr).join(" · ");
+    return `<div class="person ${isVisible ? "visible-person" : "hidden-person"}" style="left:${person.x}%;top:${person.y}%">
+      <div class="dot" style="background:linear-gradient(160deg, color-mix(in srgb, ${color} 80%, white), ${color})">${person.name.slice(0, 1)}</div>
+      <div class="person-tip"><strong>${person.name}</strong><br>${attrs}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderRoster(visible) {
+  return `<div class="roster">
+    <div class="roster-head">人员对照 <span>${visible.size}/${PEOPLE.length}</span></div>
+    <div class="roster-list">
+      ${PEOPLE.map((p) => {
+        const on = visible.has(p.id);
+        const color = colorForPerson(p);
+        const attrs =
+          p.attrs.length === 0
+            ? "未绑定"
+            : p.attrs.map(labelForAttr).join(" · ");
+        return `<div class="roster-row ${on ? "on" : "off"}">
+          <i style="background:${color}"></i>
+          <div>
+            <strong>${p.name}</strong>
+            <p>${attrs}</p>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderGoalsSide() {
+  return `<div class="side-goals">
+    <div class="roster-head">小目标</div>
+    ${GOALS.map(
+      (g, i) => `<div class="side-goal"><b>${i + 1}. ${g.title}</b><span>${g.tip}</span></div>`
+    ).join("")}
+  </div>`;
+}
+
+function legendHtml() {
+  return Object.entries(CATEGORY_COLORS)
+    .map(([id, color]) => {
+      const label = CATEGORIES.find((c) => c.id === id)?.label || id;
+      return `<span class="legend-item"><i style="background:${color}"></i>${label}</span>`;
+    })
+    .join("");
+}
+
+function renderPanel(label, opts = {}) {
+  const key = engineKeyForLabel(label);
+  const eng =
+    opts.engine || (key === "toggle" ? state.toggle : state.facet);
+  const scope = opts.scope || `solo-${label}`;
+  const visible = visibleFor(label, eng);
+  const isToggle = key === "toggle";
+  const badgeClass = label === "A" ? "a" : "b";
+  const accent = isToggle ? "a" : "b";
+  const compact = !!opts.compact;
+  const sheetOpen = state.filterSheet;
+  const infoOpen = state.infoSheet;
+
+  return `<div class="workspace panel ${compact ? "compact" : ""} ${
+    sheetOpen ? "sheet-open" : ""
+  } ${infoOpen ? "info-open" : ""}" data-panel="${label}">
+    <section class="scene-wrap">
+      <div class="mobile-topbar">
+        <div class="design-badge ${badgeClass}">方案 ${label}</div>
+        ${isToggle ? renderModeToggle(eng, scope) : ""}
+        <div class="mobile-top-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-act="toggle-info">对照</button>
+          <button type="button" class="btn btn-primary btn-sm" data-act="toggle-sheet">筛选</button>
+        </div>
+      </div>
+      <div class="scene">
+        ${renderPeople(visible)}
+        <div class="scene-legend">
+          <div>亮=显示 · 暗=隐藏 · ${visible.size}/${PEOPLE.length}</div>
+          <div class="legend-row">${legendHtml()}</div>
+        </div>
+      </div>
+      <div class="mobile-filter-bar">
+        <button type="button" class="mobile-filter-btn" data-act="toggle-sheet">
+          <span>筛选面板</span>
+          <strong>${visible.size}/${PEOPLE.length}</strong>
+        </button>
+      </div>
+    </section>
+
+    <div class="sheet-backdrop" data-act="close-sheets"></div>
+
+    <aside class="sidebar filter-sheet">
+      <div class="sheet-handle" data-act="toggle-sheet"><i></i></div>
+      <div class="sidebar-head">
+        <div class="sidebar-head-row">
+          <div class="design-badge ${badgeClass}">方案 ${label}</div>
+          ${isToggle ? renderModeToggle(eng, scope) : ""}
+        </div>
+        <h3>筛选面板</h3>
+      </div>
+      <div class="sidebar-body">
+        <div class="tree">${renderTree(eng, scope, accent)}</div>
+      </div>
+      <div class="sidebar-foot">
+        <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-on">重置全选</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-scope="${scope}" data-act="reset-off">重置全关</button>
+        <button class="btn btn-primary btn-sm mobile-only" type="button" data-act="close-sheets">完成</button>
+      </div>
+    </aside>
+
+    ${
+      compact
+        ? ""
+        : `<aside class="side-rail info-sheet">
+      <div class="sheet-handle" data-act="toggle-info"><i></i></div>
+      ${renderGoalsSide()}
+      ${renderRoster(visible)}
+      <div class="sidebar-foot mobile-only">
+        <button class="btn btn-primary btn-sm" type="button" data-act="close-sheets">关闭</button>
+      </div>
+    </aside>`
+    }
+  </div>`;
+}
+
+function ensureCompareEngines() {
+  if (!state.compare.A) {
+    const keyA = engineKeyForLabel("A");
+    state.compare.A = cloneEngine(
+      keyA === "toggle" ? state.toggle : state.facet
+    );
+  }
+  if (!state.compare.B) {
+    const keyB = engineKeyForLabel("B");
+    state.compare.B = cloneEngine(
+      keyB === "toggle" ? state.toggle : state.facet
+    );
+  }
+}
+
+function engineByScope(scope) {
+  if (scope === "solo-A" || scope === "solo-B") {
+    const label = scope.slice(-1);
+    const key = engineKeyForLabel(label);
+    return {
+      key,
+      eng: key === "toggle" ? state.toggle : state.facet,
+      label,
+      compare: false,
+    };
+  }
+  if (scope === "cmp-A" || scope === "cmp-B") {
+    ensureCompareEngines();
+    const label = scope.slice(-1);
+    const key = engineKeyForLabel(label);
+    return { key, eng: state.compare[label], label, compare: true };
+  }
+  return null;
+}
+
+function findNode(id) {
+  for (const cat of CATEGORIES) {
+    if (cat.id === id) return cat;
+    for (const child of cat.children) {
+      if (child.id === id) return child;
+      const g = child.children?.find((x) => x.id === id);
+      if (g) return g;
+    }
+  }
+  return null;
+}
+
+function handleAct(act, scope, dataset) {
+  const ctx = engineByScope(scope);
+  if (!ctx) return false;
+  const { key, eng } = ctx;
+
+  if (act === "expand") {
+    eng.expanded[dataset.id] = !eng.expanded[dataset.id];
+    return true;
+  }
+  if (act === "sel-group") {
+    const node = findNode(dataset.id);
+    if (!node) return false;
+    toggleLeaves(eng.selected, leafIdsUnder(node));
+    return true;
+  }
+  if (act === "sel-leaf") {
+    const id = dataset.id;
+    if (eng.selected.has(id)) eng.selected.delete(id);
+    else eng.selected.add(id);
+    return true;
+  }
+  if (act === "t-mode-set") {
+    if (key !== "toggle") return false;
+    eng.mode = dataset.mode === "filter" ? "filter" : "multi";
+    return true;
+  }
+  if (act === "t-mode-check") {
+    if (key !== "toggle") return false;
+    eng.mode = dataset.checked ? "filter" : "multi";
+    return true;
+  }
+  if (act === "reset-on") {
+    if (ctx.compare) {
+      const next =
+        key === "toggle"
+          ? initialDesignAState(CATEGORIES)
+          : initialDesignBState(CATEGORIES);
+      next.mode = eng.mode;
+      state.compare[ctx.label] = next;
+    } else {
+      const mode = eng.mode;
+      resetEngine(key, false);
+      if (key === "toggle") state.toggle.mode = mode;
+    }
+    return true;
+  }
+  if (act === "reset-off") {
+    if (ctx.compare) {
+      eng.selected = clearAllLeaves(CATEGORIES);
+    } else {
+      const mode = eng.mode;
+      resetEngine(key, true);
+      if (key === "toggle") state.toggle.mode = mode;
+    }
+    return true;
+  }
+  return false;
+}
+
+function getVotes() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function addVote(vote) {
+  const votes = getVotes();
+  votes.push(vote);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(votes));
+}
+
+function allKnownVotes() {
+  return mergeVotes(remoteResults.votes, getVotes());
+}
+
+async function refreshRemoteResults({ silent = false } = {}) {
+  if (location.protocol === "file:") {
+    remoteResults.status = "error";
+    remoteResults.error = "本地打开无法同步，请用在线链接";
+    if (state.view === "results") paint();
+    return false;
+  }
+  remoteResults.status = "loading";
+  if (!silent && state.view === "results") paint();
+  try {
+    const [{ votes }, tallies] = await Promise.all([
+      fetchRemoteVotes(),
+      fetchRemoteTallies(),
+    ]);
+    remoteResults.votes = votes;
+    remoteResults.tallies = tallies;
+    remoteResults.status = "ok";
+    remoteResults.error = null;
+    remoteResults.loadedAt = Date.now();
+    if (state.view === "results") paint();
+    return true;
+  } catch (err) {
+    remoteResults.status = "error";
+    remoteResults.error = err?.message || "同步失败";
+    if (state.view === "results") paint();
+    return false;
+  }
+}
+
+function renderNav() {
+  const ab =
+    session.first === "A"
+      ? [
+          { id: "A", label: "方案 A" },
+          { id: "B", label: "方案 B" },
+        ]
+      : [
+          { id: "B", label: "方案 B" },
+          { id: "A", label: "方案 A" },
+        ];
+  const items = [
+    { id: "intro", label: "说明" },
+    ...ab,
+    { id: "compare", label: "并排对比" },
+    { id: "vote", label: "投票" },
+    { id: "results", label: "汇总" },
+  ];
+  document.getElementById("nav").innerHTML = items
+    .map(
+      (it) =>
+        `<button type="button" class="nav-pill ${
+          state.view === it.id ? "active" : ""
+        }" data-act="nav" data-view="${it.id}">${it.label}</button>`
+    )
+    .join("");
+}
+
+function renderIntro() {
+  const goals = GOALS.map(
+    (g, i) => `<div class="goal-card">
+      <div class="goal-idx">${i + 1}</div>
+      <div>
+        <strong>${g.title}</strong>
+        <p>${g.tip}</p>
+      </div>
+    </div>`
+  ).join("");
+
+  return `<section class="panel panel-pad intro-fit">
+    <div class="hero-copy">
+      <h2>显隐筛选交互对比</h2>
+      <p class="lead">
+        用左侧勾选控制地图人员显隐。两套方案名称已随机对应，试用后到「投票」选一个即可。
+      </p>
+    </div>
+    <div class="goal-list goal-grid">${goals}</div>
+    <div class="tag-row">
+      <span class="tag">默认全选</span>
+      <span class="tag">可随时跳转</span>
+      <span class="tag">每次随机先后</span>
+    </div>
+  </section>`;
+}
+
+function renderVote() {
+  return `<section class="panel panel-pad vote-simple">
+    <h2 class="section-title">投给谁？</h2>
+    <p class="lead">选一个更顺手的方案。</p>
+    <form class="vote-form" id="vote-form">
+      <div class="choice-group vote-big">
+        <label class="choice vote-choice">
+          <input type="radio" name="prefer" value="A" required />
+          <span>方案 A</span>
+        </label>
+        <label class="choice vote-choice">
+          <input type="radio" name="prefer" value="B" />
+          <span>方案 B</span>
+        </label>
+      </div>
+      <div class="btn-row" style="margin-top:18px">
+        <button class="btn btn-primary" type="submit">提交</button>
+      </div>
+    </form>
+  </section>`;
+}
+
+function renderResults() {
+  const local = getVotes();
+  const remote = remoteResults.votes || [];
+  const votes = allKnownVotes();
+  const preferA = votes.filter((v) => v.prefer === "A").length;
+  const preferB = votes.filter((v) => v.prefer === "B").length;
+  const tallyA = remoteResults.tallies?.A;
+  const tallyB = remoteResults.tallies?.B;
+
+  let statusLine = "";
+  if (remoteResults.status === "loading") {
+    statusLine = `<p class="lead">正在拉取全网投票…</p>`;
+  } else if (remoteResults.status === "error") {
+    statusLine = `<p class="lead">远程同步失败：${
+      remoteResults.error || "未知错误"
+    }。下面仍显示本机记录。</p>`;
+  } else if (remoteResults.status === "ok") {
+    const when = remoteResults.loadedAt
+      ? new Date(remoteResults.loadedAt).toLocaleTimeString()
+      : "";
+    statusLine = `<p class="lead">已同步全网 <strong>${remote.length}</strong> 票${
+      when ? `（${when}）` : ""
+    }；本机另有 ${local.length} 条缓存。</p>`;
+  } else {
+    statusLine = `<p class="lead">打开本页会自动拉取其他人的投票。</p>`;
+  }
+
+  const tallyNote =
+    tallyA != null || tallyB != null
+      ? `<p class="muted" style="margin-top:8px">备用计数：A ${
+          tallyA ?? "—"
+        } · B ${tallyB ?? "—"}</p>`
+      : "";
+
+  const list = votes.length
+    ? votes
+        .slice()
+        .reverse()
+        .map((v) => {
+          const mine = local.some((l) => l.id && l.id === v.id);
+          return `<div class="result-card">
+          <div><strong>投给方案 ${v.prefer}</strong> · ${new Date(
+            v.at
+          ).toLocaleString()}${mine ? " · 本机" : ""}</div>
+        </div>`;
+        })
+        .join("")
+    : `<p class="lead">还没有投票记录。</p>`;
+
+  return `<section class="panel panel-pad">
+    <h2 class="section-title">投票汇总</h2>
+    ${statusLine}
+    <div class="compare-grid">
+      <div class="compare-card"><h3>方案 A</h3><p><strong>${preferA}</strong> 票</p></div>
+      <div class="compare-card"><h3>方案 B</h3><p><strong>${preferB}</strong> 票</p></div>
+    </div>
+    ${tallyNote}
+    <div class="results-list" style="margin-top:16px">${list}</div>
+    <div class="btn-row" style="margin-top:20px">
+      <button class="btn btn-primary" type="button" data-act="refresh-votes">刷新全网</button>
+      <button class="btn btn-secondary" type="button" data-act="export">导出 JSON</button>
+      <button class="btn btn-ghost" type="button" data-act="clear-votes">清除本机记录</button>
+    </div>
+  </section>`;
+}
+
+function paint() {
+  // reset sheets when leaving operation views
+  if (state.view !== "A" && state.view !== "B" && state.view !== "compare") {
+    state.filterSheet = false;
+    state.infoSheet = false;
+  }
+  renderNav();
+  const main = document.getElementById("main");
+  if (state.view === "intro") main.innerHTML = renderIntro();
+  else if (state.view === "A") main.innerHTML = renderPanel("A", { scope: "solo-A" });
+  else if (state.view === "B") main.innerHTML = renderPanel("B", { scope: "solo-B" });
+  else if (state.view === "compare") {
+    ensureCompareEngines();
+    main.innerHTML = `<div class="compare-workspaces">
+      ${renderPanel("A", { scope: "cmp-A", engine: state.compare.A, compact: true })}
+      ${renderPanel("B", { scope: "cmp-B", engine: state.compare.B, compact: true })}
+    </div>`;
+  } else if (state.view === "vote") main.innerHTML = renderVote();
+  else if (state.view === "results") {
+    main.innerHTML = renderResults();
+    if (remoteResults.status === "idle" || remoteResults.status === "error") {
+      refreshRemoteResults({ silent: remoteResults.status === "error" });
+    }
+  }
+}
+
+async function submitVote(form) {
+  const fd = new FormData(form);
+  const prefer = fd.get("prefer");
+  if (!prefer) return;
+  const vote = {
+    id: newVoteId(),
+    prefer,
+    map: state.map,
+    first: session.first,
+    at: Date.now(),
+  };
+  addVote(vote);
+
+  let synced = false;
+  if (location.protocol !== "file:") {
+    try {
+      const remoteVotes = await appendRemoteVote(vote);
+      remoteResults.votes = remoteVotes;
+      remoteResults.status = "ok";
+      remoteResults.error = null;
+      remoteResults.loadedAt = Date.now();
+      synced = true;
+      try {
+        const count = await bumpRemoteTally(prefer);
+        if (prefer === "B") remoteResults.tallies.B = count;
+        else remoteResults.tallies.A = count;
+      } catch {
+        /* tally is secondary */
+      }
+    } catch {
+      synced = false;
+    }
+  }
+
+  const text = `【显隐筛选投票】投给方案 ${vote.prefer}
+映射: A=${vote.map.A}, B=${vote.map.B}
+时间: ${new Date(vote.at).toLocaleString()}`;
+
+  let emailed = false;
+  if (location.protocol !== "file:") {
+    try {
+      const res = await fetch(`https://formsubmit.co/ajax/${OWNER_EMAIL}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          prefer: vote.prefer,
+          map: JSON.stringify(vote.map),
+          first: vote.first,
+          at: new Date(vote.at).toISOString(),
+          id: vote.id,
+          _subject: `[显隐筛选] 投给方案${vote.prefer}`,
+          _template: "table",
+          _captcha: "false",
+        }),
+      });
+      if (!res.ok) throw new Error("fail");
+      emailed = true;
+    } catch {
+      emailed = false;
+    }
+  }
+
+  if (synced) {
+    showToast(emailed ? "已提交到全网汇总" : "已写入全网汇总");
+  } else if (emailed) {
+    showToast("已发邮件（全网同步失败）");
+  } else {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* ignore */
+    }
+    const a = document.createElement("a");
+    a.href = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(
+      `[显隐筛选] 投给方案${vote.prefer}`
+    )}&body=${encodeURIComponent(text)}`;
+    a.click();
+    showToast("同步失败，已复制并打开邮件");
+  }
+  state.view = "results";
+  paint();
+  if (!synced) refreshRemoteResults({ silent: true });
+}
+
+function wire() {
+  const root = document.getElementById("app");
+
+  root.addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-act='nav']");
+    if (nav) {
+      state.view = nav.dataset.view;
+      state.filterSheet = false;
+      state.infoSheet = false;
+      paint();
+      if (state.view === "results") refreshRemoteResults({ silent: true });
+      return;
+    }
+
+    if (e.target.closest("[data-act='toggle-sheet']")) {
+      state.filterSheet = !state.filterSheet;
+      if (state.filterSheet) state.infoSheet = false;
+      paint();
+      return;
+    }
+    if (e.target.closest("[data-act='toggle-info']")) {
+      state.infoSheet = !state.infoSheet;
+      if (state.infoSheet) state.filterSheet = false;
+      paint();
+      return;
+    }
+    if (e.target.closest("[data-act='close-sheets']")) {
+      state.filterSheet = false;
+      state.infoSheet = false;
+      paint();
+      return;
+    }
+
+    if (e.target.closest("[data-act='export']")) {
+      const blob = new Blob([JSON.stringify(allKnownVotes(), null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `filter-votes-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    if (e.target.closest("[data-act='refresh-votes']")) {
+      refreshRemoteResults();
+      return;
+    }
+
+    if (e.target.closest("[data-act='clear-votes']")) {
+      if (confirm("清除本机投票缓存？不会删除全网已同步的票。")) {
+        localStorage.removeItem(STORAGE_KEY);
+        paint();
+      }
+      return;
+    }
+
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const act = el.dataset.act;
+    if (act === "nav" || act === "t-mode-check") return;
+    const scope = el.dataset.scope;
+    if (!scope) return;
+    if (handleAct(act, scope, el.dataset)) {
+      e.preventDefault();
+      paint();
+    }
+  });
+
+  root.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-act='t-mode-check']");
+    if (!el) return;
+    handleAct("t-mode-check", el.dataset.scope, {
+      checked: e.target.checked,
+    });
+    paint();
+  });
+
+  root.addEventListener("submit", (e) => {
+    if (e.target.id !== "vote-form") return;
+    e.preventDefault();
+    submitVote(e.target);
+  });
+}
+
+wire();
+paint();
+
+</script>
+</body>
+</html>
